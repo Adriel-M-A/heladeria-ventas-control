@@ -19,17 +19,22 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    // frame: true, // Por defecto es true. Lo dejamos así para tener bordes y botón de cerrar.
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false, // Desactivamos sandbox para evitar problemas de carga
-      preload: path.join(__dirname, "preload.cjs"), // Apuntamos al nuevo archivo .cjs
+      sandbox: false,
+      preload: path.join(__dirname, "preload.cjs"),
     },
   });
 
+  // ESTA LÍNEA ES LA CLAVE: Elimina la barra "File, Edit, View..."
+  win.setMenu(null);
+
   if (!app.isPackaged) {
     win.loadURL("http://localhost:5173");
-    win.webContents.openDevTools();
+    // Si quieres abrir las herramientas de desarrollador (F12) manualmente:
+    // win.webContents.openDevTools();
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
