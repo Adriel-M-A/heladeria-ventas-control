@@ -8,7 +8,7 @@ export default function RegisterSaleForm() {
   const [formData, setFormData] = useState({
     presentation: "medio_kilo",
     quantity: 1,
-    type: "local",
+    type: "local", // 'local' | 'pedidos_ya'
   });
 
   const PRICES = {
@@ -18,6 +18,19 @@ export default function RegisterSaleForm() {
   };
 
   const total = PRICES[formData.presentation] * formData.quantity;
+  const isPedidosYa = formData.type === "pedidos_ya";
+
+  // Configuración de colores dinámica
+  const theme = {
+    indicator: isPedidosYa ? "bg-rose-500" : "bg-blue-500",
+    badge: isPedidosYa
+      ? "bg-rose-100 text-rose-700"
+      : "bg-blue-100 text-blue-700",
+    button: isPedidosYa
+      ? "bg-rose-600 hover:bg-rose-700 shadow-rose-200"
+      : "bg-blue-600 hover:bg-blue-700 shadow-blue-200",
+    focusRing: isPedidosYa ? "focus:ring-rose-600" : "focus:ring-blue-600",
+  };
 
   return (
     <Card className="bg-white border-slate-200 shadow-sm">
@@ -33,7 +46,10 @@ export default function RegisterSaleForm() {
             <Label className="text-slate-600">Presentación</Label>
             <div className="relative">
               <select
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none appearance-none"
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none appearance-none focus:ring-2",
+                  theme.focusRing
+                )}
                 value={formData.presentation}
                 onChange={(e) =>
                   setFormData({ ...formData, presentation: e.target.value })
@@ -43,7 +59,6 @@ export default function RegisterSaleForm() {
                 <option value="medio_kilo">1/2 Kilo - $ 2.800</option>
                 <option value="kilo">1 Kilo - $ 5.000</option>
               </select>
-              {/* Icono de flecha custom para asegurar estilo */}
               <div className="absolute right-3 top-3 pointer-events-none">
                 <svg
                   className="w-4 h-4 text-slate-400"
@@ -67,7 +82,10 @@ export default function RegisterSaleForm() {
             <Label className="text-slate-600">Cantidad</Label>
             <div className="relative">
               <select
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none appearance-none"
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none appearance-none focus:ring-2",
+                  theme.focusRing
+                )}
                 value={formData.quantity}
                 onChange={(e) =>
                   setFormData({ ...formData, quantity: Number(e.target.value) })
@@ -97,12 +115,15 @@ export default function RegisterSaleForm() {
             </div>
           </div>
 
-          {/* 3. Tipo de Venta */}
+          {/* 3. Tipo de Venta (Trigger del cambio de color) */}
           <div className="space-y-2">
             <Label className="text-slate-600">Tipo de Venta</Label>
             <div className="relative">
               <select
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none pl-9 appearance-none"
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none pl-9 appearance-none focus:ring-2",
+                  theme.focusRing
+                )}
                 value={formData.type}
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value })
@@ -115,8 +136,8 @@ export default function RegisterSaleForm() {
               {/* Indicador de color visual */}
               <div
                 className={cn(
-                  "absolute left-3 top-3.5 w-2.5 h-2.5 rounded-full z-10",
-                  formData.type === "local" ? "bg-blue-500" : "bg-red-500"
+                  "absolute left-3 top-3.5 w-2.5 h-2.5 rounded-full z-10 transition-colors duration-300",
+                  theme.indicator
                 )}
               />
 
@@ -147,13 +168,11 @@ export default function RegisterSaleForm() {
             </span>
             <span
               className={cn(
-                "px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider",
-                formData.type === "local"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-red-100 text-red-700"
+                "px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider transition-colors duration-300",
+                theme.badge
               )}
             >
-              {formData.type === "local" ? "Local" : "PedidosYa"}
+              {isPedidosYa ? "PedidosYa" : "Local"}
             </span>
           </div>
 
@@ -166,7 +185,10 @@ export default function RegisterSaleForm() {
 
         <Button
           size="lg"
-          className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 mt-2"
+          className={cn(
+            "w-full h-12 text-base font-semibold text-white shadow-md mt-2 transition-all duration-300",
+            theme.button
+          )}
         >
           Registrar Venta
         </Button>
