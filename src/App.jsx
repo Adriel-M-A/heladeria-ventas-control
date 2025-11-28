@@ -82,12 +82,12 @@ function App() {
         </div>
 
         {/* --- Botones de Filtro (Tabs Funcionales) --- */}
-        {/* CORRECCIÓN: Agregado 'mx-auto' para centrar el contenedor */}
+        {/* Agregado 'mx-auto' para centrar el contenedor */}
         <div className="flex gap-2 bg-slate-100 p-1 rounded-lg w-fit mx-auto">
           <button
             onClick={() => setActiveTab("local")}
             className={cn(
-              "px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
+              "w-40 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200", // Agregado w-40 para ancho fijo
               activeTab === "local"
                 ? "bg-blue-600 text-white shadow-sm" // Estilo Activo Local
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50" // Estilo Inactivo
@@ -98,7 +98,7 @@ function App() {
           <button
             onClick={() => setActiveTab("pedidos_ya")}
             className={cn(
-              "px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
+              "w-40 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200", // Agregado w-40 para ancho fijo
               activeTab === "pedidos_ya"
                 ? "bg-rose-600 text-white shadow-sm" // Estilo Activo PedidosYa
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50" // Estilo Inactivo
