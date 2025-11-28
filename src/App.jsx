@@ -1,4 +1,5 @@
 import Layout from "@/components/Layout";
+import RegisterSaleForm from "@/components/RegisterSaleForm";
 import { CreditCard, DollarSign, TrendingUp } from "lucide-react";
 
 function App() {
@@ -18,26 +19,12 @@ function App() {
 
       <div className="grid gap-6">
         {/* --- BLOQUE A: Formulario de Nueva Venta --- */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <div className="border-b border-slate-100 pb-4 mb-6">
-            <h3 className="text-lg font-semibold text-slate-900">
-              Nueva Venta
-            </h3>
-            <p className="text-sm text-slate-500">
-              Complete los datos de la venta
-            </p>
-          </div>
-
-          <div className="h-32 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center bg-slate-50">
-            <p className="text-slate-400 font-medium text-sm">
-              Aquí insertaremos el componente &lt;RegisterSaleForm /&gt;
-            </p>
-          </div>
-        </div>
+        {/* Aquí insertamos el componente que acabamos de crear */}
+        <RegisterSaleForm />
 
         {/* --- BLOQUE B: Panel de Estadísticas --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1 */}
+          {/* Card 1: Azul Claro (Ventas Local) */}
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col justify-between h-32">
             <div className="flex justify-between items-start">
               <span className="text-blue-600 font-medium text-sm">
@@ -54,7 +41,7 @@ function App() {
             </div>
           </div>
 
-          {/* Card 2 */}
+          {/* Card 2: Rojo Claro (Ventas PedidosYa) */}
           <div className="bg-red-50 border border-red-100 rounded-xl p-6 flex flex-col justify-between h-32">
             <div className="flex justify-between items-start">
               <span className="text-red-600 font-medium text-sm">
@@ -71,7 +58,7 @@ function App() {
             </div>
           </div>
 
-          {/* Card 3 */}
+          {/* Card 3: Oscuro (Total General) */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between h-32 text-white">
             <div className="flex justify-between items-start">
               <span className="text-slate-300 font-medium text-sm">
@@ -89,7 +76,7 @@ function App() {
           </div>
         </div>
 
-        {/* Filtros */}
+        {/* Botones de Filtro (Tabs visuales) */}
         <div className="flex gap-2 bg-slate-100 p-1 rounded-lg w-fit">
           <button className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md shadow-sm">
             Ventas Local
@@ -99,7 +86,7 @@ function App() {
           </button>
         </div>
 
-        {/* --- BLOQUE C: Historial --- */}
+        {/* --- BLOQUE C: Historial de Ventas (Placeholder) --- */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div className="bg-blue-600 px-6 py-3 border-b border-blue-700">
             <h3 className="text-white font-medium text-sm">
