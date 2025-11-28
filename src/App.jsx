@@ -1,5 +1,6 @@
 import Layout from "@/components/Layout";
 import RegisterSaleForm from "@/components/RegisterSaleForm";
+import SalesTable from "@/components/SalesTable";
 import { CreditCard, DollarSign, TrendingUp } from "lucide-react";
 
 function App() {
@@ -19,7 +20,6 @@ function App() {
 
       <div className="grid gap-6">
         {/* --- BLOQUE A: Formulario de Nueva Venta --- */}
-        {/* Aquí insertamos el componente que acabamos de crear */}
         <RegisterSaleForm />
 
         {/* --- BLOQUE B: Panel de Estadísticas --- */}
@@ -87,18 +87,7 @@ function App() {
         </div>
 
         {/* --- BLOQUE C: Historial de Ventas (Placeholder) --- */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="bg-blue-600 px-6 py-3 border-b border-blue-700">
-            <h3 className="text-white font-medium text-sm">
-              Historial de Ventas Local
-            </h3>
-          </div>
-          <div className="h-48 flex items-center justify-center bg-slate-50">
-            <p className="text-slate-400 font-medium text-sm">
-              Aquí insertaremos la &lt;SalesTable /&gt;
-            </p>
-          </div>
-        </div>
+        <SalesTable />
       </div>
     </Layout>
   );
