@@ -1,21 +1,66 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import RegisterSaleForm from "@/components/RegisterSaleForm";
 import SalesTable from "@/components/SalesTable";
 import DataManagement from "@/components/DataManagement";
-import { CreditCard, DollarSign, TrendingUp, FileText } from "lucide-react";
+import {
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  FileText,
+  AlertTriangle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function App() {
-  // Estado para controlar la vista actual: 'ventas' o 'datos'
   const [currentView, setCurrentView] = useState("ventas");
-
-  // Estado para la pestaña de ventas
   const [activeSaleTab, setActiveSaleTab] = useState("local");
+  const [error, setError] = useState(null);
+
+  const [stats, setStats] = useState({
+    local: { count: 0, total: 0 },
+    pedidosYa: { count: 0, total: 0 },
+    general: { count: 0, total: 0 },
+  });
+
+  const [lastSaleTime, setLastSaleTime] = useState(Date.now());
+
+  const fetchStats = async () => {
+    if (!window.electronAPI) {
+      setError(
+        "Error crítico: No se pudo conectar con la base de datos local."
+      );
+      return;
+    }
+    try {
+      const data = await window.electronAPI.getStats();
+      setStats(data);
+    } catch (err) {
+      console.error(err);
+      setError("Error cargando estadísticas.");
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const handleSaleAdded = () => {
+    fetchStats();
+    setLastSaleTime(Date.now());
+  };
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-red-50 text-red-600 gap-2">
+        <AlertTriangle className="h-6 w-6" />
+        <span className="font-semibold">{error}</span>
+      </div>
+    );
+  }
 
   return (
     <Layout currentView={currentView} onNavigate={setCurrentView}>
-      {/* VISTA 1: VENTAS */}
       {currentView === "ventas" && (
         <div className="animate-in fade-in zoom-in-95 duration-300">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-8">
@@ -30,7 +75,7 @@ function App() {
           </div>
 
           <div className="grid gap-6">
-            <RegisterSaleForm />
+            <RegisterSaleForm onSaleSuccess={handleSaleAdded} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col justify-between h-32">
@@ -41,10 +86,12 @@ function App() {
                   <CreditCard className="w-4 h-4 text-blue-500 opacity-70" />
                 </div>
                 <div>
-                  <span className="text-2xl font-bold text-slate-900">3</span>
+                  <span className="text-2xl font-bold text-slate-900">
+                    {stats.local.count}
+                  </span>
                   <div className="text-xs text-blue-600 font-medium mt-1 flex justify-between">
                     <span>Total</span>
-                    <span>$ 61.600</span>
+                    <span>$ {stats.local.total.toLocaleString("es-AR")}</span>
                   </div>
                 </div>
               </div>
@@ -57,10 +104,14 @@ function App() {
                   <TrendingUp className="w-4 h-4 text-rose-500 opacity-70" />
                 </div>
                 <div>
-                  <span className="text-2xl font-bold text-slate-900">1</span>
+                  <span className="text-2xl font-bold text-slate-900">
+                    {stats.pedidosYa.count}
+                  </span>
                   <div className="text-xs text-rose-600 font-medium mt-1 flex justify-between">
                     <span>Total</span>
-                    <span>$ 3.000</span>
+                    <span>
+                      $ {stats.pedidosYa.total.toLocaleString("es-AR")}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -73,10 +124,12 @@ function App() {
                   <DollarSign className="w-4 h-4 text-slate-400" />
                 </div>
                 <div>
-                  <span className="text-2xl font-bold">4</span>
+                  <span className="text-2xl font-bold">
+                    {stats.general.count}
+                  </span>
                   <div className="text-xs text-slate-300 font-medium mt-1 flex justify-between">
                     <span>Ingresos</span>
-                    <span>$ 64.600</span>
+                    <span>$ {stats.general.total.toLocaleString("es-AR")}</span>
                   </div>
                 </div>
               </div>
@@ -107,19 +160,20 @@ function App() {
               </button>
             </div>
 
-            <SalesTable type={activeSaleTab} />
+            <SalesTable
+              type={activeSaleTab}
+              key={lastSaleTime + activeSaleTab}
+            />
           </div>
         </div>
       )}
 
-      {/* VISTA 2: GESTIÓN DE DATOS */}
       {currentView === "datos" && (
         <div className="animate-in fade-in zoom-in-95 duration-300">
           <DataManagement />
         </div>
       )}
 
-      {/* VISTA 3: REPORTES */}
       {currentView === "reportes" && (
         <div className="flex flex-col items-center justify-center h-[50vh] text-slate-400 animate-in fade-in zoom-in-95 duration-300">
           <div className="bg-slate-100 p-4 rounded-full mb-4">

@@ -1,26 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export default function RegisterSaleForm() {
+export default function RegisterSaleForm({ onSaleSuccess }) {
+  const [presentations, setPresentations] = useState([]);
   const [formData, setFormData] = useState({
-    presentation: "medio_kilo",
+    presentationId: "",
     quantity: 1,
-    type: "local", // 'local' | 'pedidos_ya'
+    type: "local",
   });
 
-  const PRICES = {
-    cuarto: 1500,
-    medio_kilo: 2800,
-    kilo: 5000,
-  };
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    const loadData = async () => {
+      try {
+        const data = await window.electronAPI.getPresentations();
+        setPresentations(data);
+        if (data.length > 0) {
+          setFormData((prev) => ({ ...prev, presentationId: data[0].id }));
+        }
+      } catch (err) {
+        console.error("Error cargando presentaciones:", err);
+      }
+    };
+    loadData();
+  }, []);
 
-  const total = PRICES[formData.presentation] * formData.quantity;
+  const selectedPresentation = presentations.find(
+    (p) => p.id == formData.presentationId
+  );
+
+  const price = selectedPresentation ? selectedPresentation.price : 0;
+  const total = price * formData.quantity;
   const isPedidosYa = formData.type === "pedidos_ya";
 
-  // Configuración de colores dinámica
+  const handleRegister = async () => {
+    if (!selectedPresentation || !window.electronAPI) return;
+
+    const saleData = {
+      type: formData.type,
+      presentation_name: selectedPresentation.name,
+      price_base: selectedPresentation.price,
+      quantity: formData.quantity,
+      total: total,
+      date: new Date().toLocaleString("es-AR"),
+    };
+
+    try {
+      await window.electronAPI.addSale(saleData);
+      if (onSaleSuccess) onSaleSuccess();
+      setFormData((prev) => ({ ...prev, quantity: 1 }));
+    } catch (err) {
+      console.error("Error registrando venta:", err);
+    }
+  };
+
   const theme = {
     indicator: isPedidosYa ? "bg-rose-500" : "bg-blue-500",
     badge: isPedidosYa
@@ -41,7 +77,6 @@ export default function RegisterSaleForm() {
 
       <CardContent className="pt-6 grid gap-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 1. Presentación */}
           <div className="space-y-2">
             <Label className="text-slate-600">Presentación</Label>
             <div className="relative">
@@ -50,34 +85,23 @@ export default function RegisterSaleForm() {
                   "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none appearance-none focus:ring-2",
                   theme.focusRing
                 )}
-                value={formData.presentation}
+                value={formData.presentationId}
                 onChange={(e) =>
-                  setFormData({ ...formData, presentation: e.target.value })
+                  setFormData({ ...formData, presentationId: e.target.value })
                 }
               >
-                <option value="cuarto">1/4 Kilo - $ 1.500</option>
-                <option value="medio_kilo">1/2 Kilo - $ 2.800</option>
-                <option value="kilo">1 Kilo - $ 5.000</option>
+                {presentations.length === 0 && (
+                  <option>Cargando datos...</option>
+                )}
+                {presentations.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} - $ {p.price.toLocaleString("es-AR")}
+                  </option>
+                ))}
               </select>
-              <div className="absolute right-3 top-3 pointer-events-none">
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 9l-7 7-7-7"
-                  ></path>
-                </svg>
-              </div>
             </div>
           </div>
 
-          {/* 2. Cantidad */}
           <div className="space-y-2">
             <Label className="text-slate-600">Cantidad</Label>
             <div className="relative">
@@ -91,31 +115,15 @@ export default function RegisterSaleForm() {
                   setFormData({ ...formData, quantity: Number(e.target.value) })
                 }
               >
-                {[1, 2, 3, 4, 5, 10].map((num) => (
+                {[1, 2, 3, 4, 5, 10, 15, 20].map((num) => (
                   <option key={num} value={num}>
                     {num} {num === 1 ? "unidad" : "unidades"}
                   </option>
                 ))}
               </select>
-              <div className="absolute right-3 top-3 pointer-events-none">
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 9l-7 7-7-7"
-                  ></path>
-                </svg>
-              </div>
             </div>
           </div>
 
-          {/* 3. Tipo de Venta (Trigger del cambio de color) */}
           <div className="space-y-2">
             <Label className="text-slate-600">Tipo de Venta</Label>
             <div className="relative">
@@ -132,35 +140,16 @@ export default function RegisterSaleForm() {
                 <option value="local">Local</option>
                 <option value="pedidos_ya">PedidosYa</option>
               </select>
-
-              {/* Indicador de color visual */}
               <div
                 className={cn(
                   "absolute left-3 top-3.5 w-2.5 h-2.5 rounded-full z-10 transition-colors duration-300",
                   theme.indicator
                 )}
               />
-
-              <div className="absolute right-3 top-3 pointer-events-none">
-                <svg
-                  className="w-4 h-4 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 9l-7 7-7-7"
-                  ></path>
-                </svg>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer con Total y Botón */}
         <div className="flex flex-col sm:flex-row items-center justify-between pt-4 gap-4 mt-2">
           <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
             <span className="text-slate-500 text-sm font-medium">
@@ -185,6 +174,8 @@ export default function RegisterSaleForm() {
 
         <Button
           size="lg"
+          onClick={handleRegister}
+          disabled={!selectedPresentation}
           className={cn(
             "w-full h-12 text-base font-semibold text-white shadow-md mt-2 transition-all duration-300",
             theme.button

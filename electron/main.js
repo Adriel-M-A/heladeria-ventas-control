@@ -20,9 +20,10 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: false, // Por seguridad
-      contextIsolation: true, // Por seguridad (usamos preload)
-      preload: path.join(__dirname, "preload.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false, // Desactivamos sandbox para evitar problemas de carga
+      preload: path.join(__dirname, "preload.cjs"), // Apuntamos al nuevo archivo .cjs
     },
   });
 
@@ -35,12 +36,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // 1. Inicializar la Base de Datos
+  // Inicializar BD
   initDB();
 
-  // 2. Configurar los manejadores de eventos (IPC)
-
-  // --- Presentaciones ---
+  // IPC Handlers
   ipcMain.handle("get-presentations", () => getPresentations());
   ipcMain.handle("add-presentation", (event, data) =>
     addPresentation(data.name, data.price)
@@ -49,8 +48,6 @@ app.whenReady().then(() => {
     updatePresentation(data.id, data.name, data.price)
   );
   ipcMain.handle("delete-presentation", (event, id) => deletePresentation(id));
-
-  // --- Ventas ---
   ipcMain.handle("get-sales", (event, type) => getSales(type));
   ipcMain.handle("add-sale", (event, data) => addSale(data));
   ipcMain.handle("get-stats", () => getStats());

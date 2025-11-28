@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,63 +14,74 @@ import {
 import { Pencil, Trash2, Plus } from "lucide-react";
 
 export default function DataManagement() {
-  // Datos iniciales simulados
-  const [presentations, setPresentations] = useState([
-    { id: 1, name: "1/2 Kilo", price: 2800 },
-    { id: 2, name: "1/4 Kilo", price: 1500 },
-  ]);
-
-  // Estado del formulario
+  const [presentations, setPresentations] = useState([]);
   const [formData, setFormData] = useState({ name: "", price: "" });
   const [editingId, setEditingId] = useState(null);
 
-  // Manejar cambios en inputs
+  // Cargar datos de la BD
+  const fetchPresentations = async () => {
+    try {
+      const data = await window.electronAPI.getPresentations();
+      setPresentations(data);
+    } catch (err) {
+      console.error("Error fetching presentations:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPresentations();
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Agregar o Actualizar
-  const handleSubmit = () => {
-    if (!formData.name || !formData.price) return; // Validación simple
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.price) return;
 
-    if (editingId) {
-      // Modo Edición: Actualizar existente
-      setPresentations((prev) =>
-        prev.map((item) =>
-          item.id === editingId
-            ? { ...item, name: formData.name, price: Number(formData.price) }
-            : item
-        )
-      );
-      setEditingId(null);
-    } else {
-      // Modo Agregar: Crear nuevo
-      const newId = Math.max(...presentations.map((p) => p.id), 0) + 1;
-      setPresentations((prev) => [
-        ...prev,
-        { id: newId, name: formData.name, price: Number(formData.price) },
-      ]);
+    try {
+      if (editingId) {
+        // ACTUALIZAR en BD
+        await window.electronAPI.updatePresentation({
+          id: editingId,
+          name: formData.name,
+          price: Number(formData.price),
+        });
+        setEditingId(null);
+      } else {
+        // AGREGAR en BD
+        await window.electronAPI.addPresentation({
+          name: formData.name,
+          price: Number(formData.price),
+        });
+      }
+
+      // Limpiar y recargar
+      setFormData({ name: "", price: "" });
+      fetchPresentations();
+    } catch (err) {
+      console.error("Error guardando:", err);
     }
-    // Limpiar formulario
-    setFormData({ name: "", price: "" });
   };
 
-  // Cargar datos para editar
   const handleEdit = (item) => {
     setFormData({ name: item.name, price: item.price });
     setEditingId(item.id);
   };
 
-  // Eliminar
-  const handleDelete = (id) => {
-    setPresentations((prev) => prev.filter((item) => item.id !== id));
-    if (editingId === id) {
-      handleCancel();
+  const handleDelete = async (id) => {
+    if (confirm("¿Seguro que deseas eliminar esta presentación?")) {
+      try {
+        await window.electronAPI.deletePresentation(id);
+        if (editingId === id) handleCancel();
+        fetchPresentations();
+      } catch (err) {
+        console.error("Error eliminando:", err);
+      }
     }
   };
 
-  // Cancelar edición
   const handleCancel = () => {
     setEditingId(null);
     setFormData({ name: "", price: "" });
@@ -78,7 +89,6 @@ export default function DataManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Encabezado */}
       <div>
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">
           Gestión de Datos
@@ -89,7 +99,7 @@ export default function DataManagement() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* --- FORMULARIO (Izquierda) --- */}
+        {/* --- FORMULARIO --- */}
         <div className="lg:col-span-2">
           <Card className="bg-white border-slate-200 shadow-sm sticky top-6">
             <CardHeader className="border-b border-slate-100 pb-4 bg-slate-50/50">
@@ -154,7 +164,7 @@ export default function DataManagement() {
           </Card>
         </div>
 
-        {/* --- LISTADO (Derecha) --- */}
+        {/* --- LISTADO --- */}
         <div className="lg:col-span-3">
           <Card className="bg-white border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="border-b border-slate-100 pb-4 bg-slate-50/50 flex flex-row items-center justify-between">

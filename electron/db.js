@@ -1,16 +1,19 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { app } from "electron";
+import { fileURLToPath } from "url";
+
+// --- DEFINIR __dirname MANUALMENTE (Necesario en ESM) ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Definir dónde se guardará el archivo .db
-// En desarrollo: en la raíz del proyecto.
-// En producción: en la carpeta de datos del usuario (AppData)
 const dbPath = app.isPackaged
   ? path.join(app.getPath("userData"), "heladeria.db")
   : path.join(__dirname, "../../heladeria.db");
 
 const db = new Database(dbPath);
-db.pragma("journal_mode = WAL"); // Optimización de velocidad
+db.pragma("journal_mode = WAL");
 
 // Inicializar tablas
 export function initDB() {
@@ -27,12 +30,12 @@ export function initDB() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS sales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL, -- 'local' o 'pedidos_ya'
+      type TEXT NOT NULL,
       presentation_name TEXT NOT NULL,
       price_base INTEGER NOT NULL,
       quantity INTEGER NOT NULL,
       total INTEGER NOT NULL,
-      date TEXT NOT NULL -- Guardaremos fecha ISO
+      date TEXT NOT NULL
     )
   `);
 }
@@ -69,7 +72,6 @@ export function deletePresentation(id) {
 // --- FUNCIONES PARA VENTAS ---
 
 export function getSales(type) {
-  // Si type es 'all', devuelve todo, sino filtra
   if (type && type !== "all") {
     const stmt = db.prepare(
       "SELECT * FROM sales WHERE type = ? ORDER BY id DESC"
@@ -98,7 +100,6 @@ export function addSale(sale) {
 }
 
 export function getStats() {
-  // Calcular totales por tipo
   const local = db
     .prepare(
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'local'"
