@@ -10,6 +10,7 @@ import {
   getSales,
   addSale,
   getStats,
+  getReports,
 } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +20,6 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    // frame: true, // Por defecto es true. Lo dejamos así para tener bordes y botón de cerrar.
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -28,23 +28,18 @@ function createWindow() {
     },
   });
 
-  // ESTA LÍNEA ES LA CLAVE: Elimina la barra "File, Edit, View..."
   win.setMenu(null);
 
   if (!app.isPackaged) {
     win.loadURL("http://localhost:5173");
-    // Si quieres abrir las herramientas de desarrollador (F12) manualmente:
-    // win.webContents.openDevTools();
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 }
 
 app.whenReady().then(() => {
-  // Inicializar BD
   initDB();
 
-  // IPC Handlers
   ipcMain.handle("get-presentations", () => getPresentations());
   ipcMain.handle("add-presentation", (event, data) =>
     addPresentation(data.name, data.price)
@@ -56,6 +51,7 @@ app.whenReady().then(() => {
   ipcMain.handle("get-sales", (event, type) => getSales(type));
   ipcMain.handle("add-sale", (event, data) => addSale(data));
   ipcMain.handle("get-stats", () => getStats());
+  ipcMain.handle("get-reports", (event, period) => getReports(period));
 
   createWindow();
 });
