@@ -8,24 +8,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function SalesTable({ type = "local" }) {
   const [sales, setSales] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 10;
+
   const isPedidosYa = type === "pedidos_ya";
+
+  useEffect(() => {
+    setPage(1);
+  }, [type]);
 
   useEffect(() => {
     if (!window.electronAPI) return;
     const fetchSales = async () => {
       try {
-        const data = await window.electronAPI.getSales(type);
-        setSales(data);
+        const result = await window.electronAPI.getSales(type, page, pageSize);
+        setSales(result.data);
+        setTotalPages(result.totalPages);
       } catch (error) {
         console.error("Error al cargar ventas:", error);
       }
     };
     fetchSales();
-  }, [type]);
+  }, [type, page]);
 
   const formatDate = (isoString) => {
     try {
@@ -60,7 +71,7 @@ export default function SalesTable({ type = "local" }) {
   };
 
   return (
-    <Card className="overflow-hidden border-slate-200 shadow-sm bg-white">
+    <Card className="overflow-hidden border-slate-200 shadow-sm bg-white flex flex-col h-full">
       <div
         className={cn(
           "px-6 py-3 border-b transition-colors duration-300",
@@ -72,7 +83,7 @@ export default function SalesTable({ type = "local" }) {
         </h3>
       </div>
 
-      <div className="p-0">
+      <div className="flex-1 overflow-auto">
         <Table>
           <TableHeader>
             <TableRow
@@ -140,6 +151,32 @@ export default function SalesTable({ type = "local" }) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex items-center justify-between px-4 py-4 border-t border-slate-100 bg-slate-50/50">
+        <div className="text-xs text-slate-500 font-medium">
+          Página {page} de {totalPages || 1}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="h-8 px-3 text-slate-600 border-slate-200 hover:bg-white hover:text-slate-900"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages || totalPages === 0}
+            className="h-8 px-3 text-slate-600 border-slate-200 hover:bg-white hover:text-slate-900"
+          >
+            Siguiente <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
       </div>
     </Card>
   );

@@ -20,13 +20,13 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
+import { formatError } from "@/lib/utils";
 
 export default function DataManagement() {
   const [presentations, setPresentations] = useState([]);
   const [formData, setFormData] = useState({ name: "", price: "" });
   const [editingId, setEditingId] = useState(null);
 
-  // Estado para el ordenamiento { key: 'price' | 'name' | null, direction: 'asc' | 'desc' }
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const fetchPresentations = async () => {
@@ -35,7 +35,7 @@ export default function DataManagement() {
       setPresentations(data);
     } catch (err) {
       console.error("Error fetching presentations:", err);
-      toast.error("Error al cargar las presentaciones");
+      toast.error(formatError(err));
     }
   };
 
@@ -50,13 +50,12 @@ export default function DataManagement() {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.price) {
-      toast.warning("Complete todos los campos");
+      toast.warning("Por favor complete todos los campos");
       return;
     }
 
     try {
       if (editingId) {
-        // ACTUALIZAR
         await window.electronAPI.updatePresentation({
           id: editingId,
           name: formData.name,
@@ -65,7 +64,6 @@ export default function DataManagement() {
         toast.success("Presentación actualizada correctamente");
         setEditingId(null);
       } else {
-        // AGREGAR
         await window.electronAPI.addPresentation({
           name: formData.name,
           price: Number(formData.price),
@@ -77,7 +75,7 @@ export default function DataManagement() {
       fetchPresentations();
     } catch (err) {
       console.error("Error guardando:", err);
-      toast.error("Ocurrió un error al guardar");
+      toast.error(formatError(err));
     }
   };
 
@@ -96,7 +94,7 @@ export default function DataManagement() {
         fetchPresentations();
       } catch (err) {
         console.error("Error eliminando:", err);
-        toast.error("Error al eliminar");
+        toast.error(formatError(err));
       }
     }
   };
@@ -106,37 +104,31 @@ export default function DataManagement() {
     setFormData({ name: "", price: "" });
   };
 
-  // --- LÓGICA DE ORDENAMIENTO ---
   const handleSort = (key) => {
     let direction = "asc";
-    // Si ya estamos ordenando por esta columna y es ascendente, cambiamos a descendente
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
     setSortConfig({ key, direction });
   };
 
-  // Creamos una copia ordenada para mostrar, sin mutar el estado original
   const sortedPresentations = [...presentations].sort((a, b) => {
     if (!sortConfig.key) return 0;
 
     const aValue = a[sortConfig.key];
     const bValue = b[sortConfig.key];
 
-    // Comparación especial para texto (Nombre)
     if (typeof aValue === "string") {
       return sortConfig.direction === "asc"
         ? aValue.localeCompare(bValue)
         : bValue.localeCompare(aValue);
     }
 
-    // Comparación para números (Precio)
     if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
     if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
     return 0;
   });
 
-  // Helper para mostrar el icono correcto según el estado
   const getSortIcon = (key) => {
     if (sortConfig.key !== key)
       return <ArrowUpDown className="w-4 h-4 ml-2 text-slate-300" />;
@@ -157,7 +149,6 @@ export default function DataManagement() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* --- FORMULARIO --- */}
         <div className="lg:col-span-2">
           <Card className="bg-white border-slate-200 shadow-sm sticky top-6">
             <CardHeader className="border-b border-slate-100 pb-4 bg-slate-50/50">
@@ -222,7 +213,6 @@ export default function DataManagement() {
           </Card>
         </div>
 
-        {/* --- LISTADO --- */}
         <div className="lg:col-span-3">
           <Card className="bg-white border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="border-b border-slate-100 pb-4 bg-slate-50/50 flex flex-row items-center justify-between">
@@ -240,7 +230,6 @@ export default function DataManagement() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-slate-50/50">
-                    {/* Encabezado NOMBRE ordenable */}
                     <TableHead
                       className="w-[40%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       onClick={() => handleSort("name")}
@@ -250,7 +239,6 @@ export default function DataManagement() {
                       </div>
                     </TableHead>
 
-                    {/* Encabezado PRECIO ordenable */}
                     <TableHead
                       className="w-[30%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
                       onClick={() => handleSort("price")}

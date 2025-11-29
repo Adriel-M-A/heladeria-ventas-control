@@ -87,19 +87,52 @@ const getStartDate = (period) => {
   return null;
 };
 
-export function getSales(type) {
+// MODIFICADO: Mantiene filtro de "hoy" + Paginación
+export function getSales(type, page = 1, pageSize = 10) {
   const startOfDay = getStartDate("today");
+  const offset = (page - 1) * pageSize;
 
+  let query = "SELECT * FROM sales";
+  let countQuery = "SELECT COUNT(*) as total FROM sales";
+
+  const conditions = [];
+  const params = [];
+
+  // 1. Filtro obligatorio: Solo ventas de hoy en adelante
+  conditions.push("date >= ?");
+  params.push(startOfDay);
+
+  // 2. Filtro opcional: Tipo de venta (local/pedidos_ya)
   if (type && type !== "all") {
-    const stmt = db.prepare(
-      "SELECT * FROM sales WHERE type = ? AND date >= ? ORDER BY id DESC"
-    );
-    return stmt.all(type, startOfDay);
+    conditions.push("type = ?");
+    params.push(type);
   }
-  const stmt = db.prepare(
-    "SELECT * FROM sales WHERE date >= ? ORDER BY id DESC"
-  );
-  return stmt.all(startOfDay);
+
+  // Armar el WHERE
+  if (conditions.length > 0) {
+    const whereSql = " WHERE " + conditions.join(" AND ");
+    query += whereSql;
+    countQuery += whereSql;
+  }
+
+  // Orden y Paginación
+  query += " ORDER BY id DESC LIMIT ? OFFSET ?";
+
+  // Ejecutar consulta de datos (spread params + pageSize + offset)
+  const stmt = db.prepare(query);
+  const rows = stmt.all(...params, pageSize, offset);
+
+  // Ejecutar consulta de conteo (solo params, sin limit/offset)
+  const totalResult = db.prepare(countQuery).get(...params);
+  const totalRecords = totalResult.total || 0;
+
+  return {
+    data: rows,
+    total: totalRecords,
+    page,
+    pageSize,
+    totalPages: Math.ceil(totalRecords / pageSize),
+  };
 }
 
 export function addSale(sale) {
@@ -181,7 +214,6 @@ const getPeriodRange = (period, customRange) => {
   return { start: null, end: null };
 };
 
-// MODIFICADO: Acepta typeFilter ("all", "local", "pedidos_ya")
 export function getReports(period, customRange, typeFilter = "all") {
   const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
@@ -217,7 +249,6 @@ export function getReports(period, customRange, typeFilter = "all") {
     customRange
   );
 
-  // 1. WHERE base (Solo fechas) -> Para los totales de canales
   let dateConditions = [];
   if (selectedStart) dateConditions.push(`date >= '${selectedStart}'`);
   if (selectedEnd) dateConditions.push(`date <= '${selectedEnd}'`);
@@ -227,7 +258,6 @@ export function getReports(period, customRange, typeFilter = "all") {
     dateWhere = "WHERE " + dateConditions.join(" AND ");
   }
 
-  // 2. WHERE completo (Fechas + Filtro de Tipo) -> Para Ranking y Tendencias
   let fullConditions = [...dateConditions];
   if (typeFilter !== "all") {
     fullConditions.push(`type = '${typeFilter}'`);
@@ -238,7 +268,6 @@ export function getReports(period, customRange, typeFilter = "all") {
     fullWhere = "WHERE " + fullConditions.join(" AND ");
   }
 
-  // Usamos dateWhere (sin filtrar tipo) para mostrar siempre los totales correctos en la tarjeta de selección
   const channels = db
     .prepare(
       `
@@ -258,7 +287,6 @@ export function getReports(period, customRange, typeFilter = "all") {
     },
   };
 
-  // Usamos fullWhere (filtrado por tipo) para el Ranking
   const presentations = db
     .prepare(
       `
@@ -274,7 +302,6 @@ export function getReports(period, customRange, typeFilter = "all") {
   const isDaily = ["week", "month"].includes(period) || period === "custom";
   const timeFormat = isDaily ? "%Y-%m-%d" : "%H";
 
-  // Usamos fullWhere (filtrado por tipo) para la Tendencia
   const trend = db
     .prepare(
       `

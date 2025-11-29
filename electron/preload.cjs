@@ -5,11 +5,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   addPresentation: (data) => ipcRenderer.invoke("add-presentation", data),
   updatePresentation: (data) => ipcRenderer.invoke("update-presentation", data),
   deletePresentation: (id) => ipcRenderer.invoke("delete-presentation", id),
-  getSales: (type) => ipcRenderer.invoke("get-sales", type),
+
+  getSales: (type, page, pageSize) =>
+    ipcRenderer.invoke("get-sales", type, page, pageSize),
+
   addSale: (data) => ipcRenderer.invoke("add-sale", data),
   getStats: () => ipcRenderer.invoke("get-stats"),
-
-  // Actualizado para aceptar typeFilter
   getReports: (period, customRange, typeFilter) =>
     ipcRenderer.invoke("get-reports", period, customRange, typeFilter),
 });

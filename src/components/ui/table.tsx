@@ -2,8 +2,6 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Table = React.forwardRef(({ className, ...props }, ref) => (
-  // MODIFICACIÓN: Agregamos max-h-[520px] y overflow-auto
-  // Esto fuerza el scroll vertical si el contenido supera aprox. 10 filas
   <div className="relative w-full overflow-auto max-h-[520px]">
     <table
       ref={ref}
@@ -15,9 +13,11 @@ const Table = React.forwardRef(({ className, ...props }, ref) => (
 Table.displayName = "Table";
 
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
-  // Opcional: Agregamos 'sticky top-0 z-10' si quisieras que la cabecera se quede fija al scrollear
-  // Por ahora lo dejamos simple para evitar conflictos de fondo transparente
-  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+  <thead
+    ref={ref}
+    className={cn("[&_tr]:border-b sticky top-0 z-10 bg-white", className)}
+    {...props}
+  />
 ));
 TableHeader.displayName = "TableHeader";
 

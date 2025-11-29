@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, formatError } from "@/lib/utils";
 
 export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
   const [presentations, setPresentations] = useState([]);
@@ -28,7 +28,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
         setPresentations(data);
       } catch (err) {
         console.error("Error cargando presentaciones:", err);
-        toast.error("Error al cargar los productos");
+        toast.error("No se pudieron cargar los productos.");
       }
     };
     loadData();
@@ -77,7 +77,8 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       setFormData((prev) => ({ ...prev, quantity: "1", presentationId: "" }));
     } catch (err) {
       console.error("Error registrando venta:", err);
-      toast.error("Error al registrar la venta");
+      // Usamos el formateador para mostrar solo el mensaje en español
+      toast.error(formatError(err));
     }
   };
 
