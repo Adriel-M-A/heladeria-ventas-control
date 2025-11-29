@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -34,6 +35,7 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
         }
       } catch (err) {
         console.error("Error cargando presentaciones:", err);
+        toast.error("Error al cargar los productos");
       }
     };
     loadData();
@@ -51,21 +53,41 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
   const handleRegister = async () => {
     if (!selectedPresentation || !window.electronAPI) return;
 
+    // Validación extra
+    if (total <= 0) {
+      toast.error("El precio total debe ser mayor a 0");
+      return;
+    }
+
     const saleData = {
       type: formData.type,
       presentation_name: selectedPresentation.name,
       price_base: selectedPresentation.price,
       quantity: quantityNum,
       total: total,
-      date: new Date().toLocaleString("es-AR"),
+      date: new Date().toISOString(),
     };
 
     try {
       await window.electronAPI.addSale(saleData);
+
+      // Notificación de éxito
+      toast.success(
+        `Venta de ${
+          formData.type === "local" ? "Local" : "PedidosYa"
+        } registrada`,
+        {
+          description: `$ ${total.toLocaleString("es-AR")}`,
+        }
+      );
+
       if (onSaleSuccess) onSaleSuccess();
+
+      // Reiniciar cantidad
       setFormData((prev) => ({ ...prev, quantity: "1" }));
     } catch (err) {
       console.error("Error registrando venta:", err);
+      toast.error("Error al registrar la venta");
     }
   };
 
@@ -195,7 +217,7 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
           <Button
             size="lg"
             onClick={handleRegister}
-            disabled={!selectedPresentation}
+            disabled={!selectedPresentation || price === 0}
             className={cn(
               "w-full h-11 text-base font-semibold text-white shadow-md transition-all duration-200",
               theme.button

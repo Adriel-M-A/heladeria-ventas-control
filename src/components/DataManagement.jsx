@@ -3,6 +3,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Table,
   TableHeader,
@@ -18,13 +19,13 @@ export default function DataManagement() {
   const [formData, setFormData] = useState({ name: "", price: "" });
   const [editingId, setEditingId] = useState(null);
 
-  // Cargar datos de la BD
   const fetchPresentations = async () => {
     try {
       const data = await window.electronAPI.getPresentations();
       setPresentations(data);
     } catch (err) {
       console.error("Error fetching presentations:", err);
+      toast.error("Error al cargar las presentaciones");
     }
   };
 
@@ -38,46 +39,54 @@ export default function DataManagement() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.price) return;
+    if (!formData.name || !formData.price) {
+      toast.warning("Complete todos los campos");
+      return;
+    }
 
     try {
       if (editingId) {
-        // ACTUALIZAR en BD
+        // ACTUALIZAR
         await window.electronAPI.updatePresentation({
           id: editingId,
           name: formData.name,
           price: Number(formData.price),
         });
+        toast.success("Presentación actualizada correctamente");
         setEditingId(null);
       } else {
-        // AGREGAR en BD
+        // AGREGAR
         await window.electronAPI.addPresentation({
           name: formData.name,
           price: Number(formData.price),
         });
+        toast.success("Nueva presentación creada");
       }
 
-      // Limpiar y recargar
       setFormData({ name: "", price: "" });
       fetchPresentations();
     } catch (err) {
       console.error("Error guardando:", err);
+      toast.error("Ocurrió un error al guardar");
     }
   };
 
   const handleEdit = (item) => {
     setFormData({ name: item.name, price: item.price });
     setEditingId(item.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
     if (confirm("¿Seguro que deseas eliminar esta presentación?")) {
       try {
         await window.electronAPI.deletePresentation(id);
+        toast.success("Presentación eliminada");
         if (editingId === id) handleCancel();
         fetchPresentations();
       } catch (err) {
         console.error("Error eliminando:", err);
+        toast.error("Error al eliminar");
       }
     }
   };

@@ -27,6 +27,27 @@ export default function SalesTable({ type = "local" }) {
     fetchSales();
   }, [type]);
 
+  // Función para formatear la fecha ISO a algo legible
+  const formatDate = (isoString) => {
+    try {
+      if (!isoString) return "-";
+      const date = new Date(isoString);
+
+      if (isNaN(date.getTime())) return isoString;
+
+      return date.toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    } catch (e) {
+      return isoString;
+    }
+  };
+
   const theme = {
     headerBg: isPedidosYa
       ? "bg-rose-600 border-rose-700"
@@ -90,7 +111,7 @@ export default function SalesTable({ type = "local" }) {
                   )}
                 >
                   <TableCell className="font-medium text-slate-700">
-                    {sale.date}
+                    {formatDate(sale.date)}
                   </TableCell>
                   <TableCell className="text-slate-700">
                     {sale.presentation_name}

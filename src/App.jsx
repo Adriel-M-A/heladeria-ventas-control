@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Toaster } from "sonner";
 import Layout from "@/components/Layout";
 import RegisterSaleForm from "@/components/RegisterSaleForm";
 import SalesTable from "@/components/SalesTable";
@@ -61,6 +62,8 @@ function App() {
 
   return (
     <Layout currentView={currentView} onNavigate={setCurrentView}>
+      <Toaster position="top-right" richColors />
+
       {currentView === "ventas" && (
         <div className="animate-in fade-in zoom-in-95 duration-300">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-8">
