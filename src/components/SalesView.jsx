@@ -8,14 +8,12 @@ import { cn } from "@/lib/utils";
 export default function SalesView() {
   const [activeSaleTab, setActiveSaleTab] = useState("local");
 
-  // Estado para las estadísticas
   const [stats, setStats] = useState({
     local: { count: 0, total: 0 },
     pedidosYa: { count: 0, total: 0 },
     general: { count: 0, total: 0 },
   });
 
-  // Estado para forzar la recarga de la tabla
   const [lastSaleTime, setLastSaleTime] = useState(Date.now());
 
   const fetchStats = async () => {
@@ -52,9 +50,12 @@ export default function SalesView() {
       </div>
 
       <div className="grid gap-6">
-        <RegisterSaleForm onSaleSuccess={handleSaleAdded} />
+        {/* AQUÍ EL CAMBIO: Pasamos onTypeChange para sincronizar la tabla */}
+        <RegisterSaleForm
+          onSaleSuccess={handleSaleAdded}
+          onTypeChange={setActiveSaleTab}
+        />
 
-        {/* Tarjetas de Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col justify-between h-32">
             <div className="flex justify-between items-start">
@@ -109,7 +110,7 @@ export default function SalesView() {
           </div>
         </div>
 
-        {/* Tabs de la tabla */}
+        {/* Botones de pestaña (Siguen funcionando manualmente si quieres) */}
         <div className="flex gap-2 bg-slate-100 p-1 rounded-lg w-fit mx-auto">
           <button
             onClick={() => setActiveSaleTab("local")}

@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-export default function RegisterSaleForm({ onSaleSuccess }) {
+// AQUÍ EL CAMBIO: Recibimos onTypeChange
+export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
   const [presentations, setPresentations] = useState([]);
   const [formData, setFormData] = useState({
     presentationId: "",
@@ -20,7 +21,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
     type: "local",
   });
 
-  // Cargar presentaciones de la BD
   useEffect(() => {
     if (!window.electronAPI) return;
     const loadData = async () => {
@@ -97,7 +97,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
       : "bg-blue-600 hover:bg-blue-700",
   };
 
-  // Estilos personalizados para los items del select
   const selectItemStyles =
     "cursor-pointer focus:bg-slate-100 pl-3 pr-8 [&>span.absolute]:left-auto [&>span.absolute]:right-2";
 
@@ -110,7 +109,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
 
       <CardContent className="pt-6 grid gap-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 1. Presentación */}
           <div className="space-y-2">
             <Label className="text-slate-600 font-medium">Presentación</Label>
             <Select
@@ -146,7 +144,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
             </Select>
           </div>
 
-          {/* 2. Cantidad */}
           <div className="space-y-2">
             <Label className="text-slate-600 font-medium">Cantidad</Label>
             <Select
@@ -177,7 +174,12 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
             <Label className="text-slate-600 font-medium">Tipo de Venta</Label>
             <Select
               value={formData.type}
-              onValueChange={(val) => setFormData({ ...formData, type: val })}
+              onValueChange={(val) => {
+                // Actualizamos el estado local del formulario
+                setFormData({ ...formData, type: val });
+                // Y AVISAMOS AL PADRE (SalesView) para que cambie la tabla
+                if (onTypeChange) onTypeChange(val);
+              }}
             >
               <SelectTrigger className="bg-white border-slate-200 focus:ring-0 focus:ring-offset-0">
                 <SelectValue />
@@ -200,7 +202,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="mt-2 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
