@@ -51,7 +51,11 @@ app.whenReady().then(() => {
   ipcMain.handle("get-sales", (event, type) => getSales(type));
   ipcMain.handle("add-sale", (event, data) => addSale(data));
   ipcMain.handle("get-stats", () => getStats());
-  ipcMain.handle("get-reports", (event, period) => getReports(period));
+
+  // Aceptamos el segundo parámetro customRange
+  ipcMain.handle("get-reports", (event, period, customRange) =>
+    getReports(period, customRange)
+  );
 
   createWindow();
 });

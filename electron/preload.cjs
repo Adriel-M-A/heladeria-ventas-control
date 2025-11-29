@@ -8,5 +8,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getSales: (type) => ipcRenderer.invoke("get-sales", type),
   addSale: (data) => ipcRenderer.invoke("add-sale", data),
   getStats: () => ipcRenderer.invoke("get-stats"),
-  getReports: (period) => ipcRenderer.invoke("get-reports", period),
+
+  // Pasamos el rango opcional
+  getReports: (period, customRange) =>
+    ipcRenderer.invoke("get-reports", period, customRange),
 });

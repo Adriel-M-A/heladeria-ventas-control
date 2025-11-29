@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+// Badge ya no se usa, lo quitamos de los imports
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   BarChart3,
   TrendingUp,
@@ -8,23 +10,30 @@ import {
   Layers,
   PieChart,
   Clock,
+  CalendarRange,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function ReportsView() {
-  // Inicializamos en 'today' (Hoy), pero puedes cambiarlo a 'yesterday' si prefieres.
   const [period, setPeriod] = useState("today");
+  const [customRange, setCustomRange] = useState({
+    from: new Date().toISOString().split("T")[0],
+    to: new Date().toISOString().split("T")[0],
+  });
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cada vez que cambia 'period' (al hacer clic en una tarjeta), esto se ejecuta
   useEffect(() => {
     const loadReports = async () => {
       setLoading(true);
       try {
         if (window.electronAPI) {
-          // Solicitamos al backend los datos filtrados por el periodo seleccionado
-          const reportData = await window.electronAPI.getReports(period);
+          const reportData = await window.electronAPI.getReports(
+            period,
+            customRange
+          );
           setData(reportData);
         }
       } catch (error) {
@@ -34,11 +43,15 @@ export default function ReportsView() {
       }
     };
     loadReports();
-  }, [period]);
+  }, [period, customRange]);
+
+  const handleDateChange = (e) => {
+    const { name, value } = e.target;
+    setCustomRange((prev) => ({ ...prev, [name]: value }));
+  };
 
   if (!data && !loading) return <div>No hay datos disponibles.</div>;
 
-  // CONFIGURACIÓN DE TARJETAS (ORDEN CORREGIDO: Ayer -> Hoy -> Semana -> Mes -> Total)
   const cardConfig = [
     { id: "yesterday", label: "Ayer", icon: <Clock className="w-4 h-4" /> },
     { id: "today", label: "Hoy", icon: <BarChart3 className="w-4 h-4" /> },
@@ -48,32 +61,64 @@ export default function ReportsView() {
       icon: <Calendar className="w-4 h-4" />,
     },
     { id: "month", label: "Este Mes", icon: <Layers className="w-4 h-4" /> },
-    { id: "total", label: "Total", icon: <TrendingUp className="w-4 h-4" /> },
+    {
+      id: "custom",
+      label: "Rango",
+      icon: <CalendarRange className="w-4 h-4" />,
+    },
   ];
+
+  const currentTotal = data?.cards[period] || { count: 0, revenue: 0 };
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-      {/* HEADER */}
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-          Reportes y Estadísticas
-        </h2>
-        <p className="text-slate-500">
-          Análisis de ventas por período y presentación
-        </p>
+      {/* HEADER & DATE PICKER */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+            Reportes y Estadísticas
+          </h2>
+          <p className="text-slate-500">
+            Análisis de ventas por período y presentación
+          </p>
+        </div>
+
+        {period === "custom" && (
+          <div className="flex items-end gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm animate-in slide-in-from-right-5 fade-in">
+            <div>
+              <Label className="text-xs text-slate-500 ml-1">Desde</Label>
+              <Input
+                type="date"
+                name="from"
+                value={customRange.from}
+                onChange={handleDateChange}
+                className="h-8 w-36 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-slate-500 ml-1">Hasta</Label>
+              <Input
+                type="date"
+                name="to"
+                value={customRange.to}
+                onChange={handleDateChange}
+                className="h-8 w-36 text-sm"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* TARJETAS SUPERIORES (FILTROS) */}
+      {/* FILTROS / TARJETAS SUPERIORES */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {cardConfig.map((card) => {
-          // Estos datos (stats) son estáticos para cada tarjeta (siempre muestran el total de ese periodo)
           const stats = data?.cards[card.id] || { count: 0, revenue: 0 };
           const isSelected = period === card.id;
 
           return (
             <div
               key={card.id}
-              onClick={() => setPeriod(card.id)} // <--- AQUÍ SE ACTIVA EL CAMBIO DE DATOS DE ABAJO
+              onClick={() => setPeriod(card.id)}
               className={cn(
                 "bg-white p-6 rounded-xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md",
                 isSelected
@@ -98,9 +143,9 @@ export default function ReportsView() {
         })}
       </div>
 
-      {/* SECCIÓN INFERIOR - ESTOS DATOS CAMBIAN SEGÚN LA TARJETA SELECCIONADA */}
+      {/* SECCIÓN INFERIOR - DOS COLUMNAS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* VENTAS POR TIPO */}
+        {/* COLUMNA IZQUIERDA: VENTAS POR TIPO */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
             <PieChart className="w-4 h-4 text-slate-500" />
@@ -109,7 +154,6 @@ export default function ReportsView() {
                 Ventas por Tipo
               </h3>
               <p className="text-slate-500 text-xs">
-                {/* Mostramos dinámicamente qué periodo se está viendo */}
                 Distribución de ventas (
                 {cardConfig.find((c) => c.id === period)?.label})
               </p>
@@ -154,10 +198,26 @@ export default function ReportsView() {
                 </div>
               </div>
             </div>
+
+            {/* Total General */}
+            <div className="flex items-center justify-between p-4 bg-slate-100 rounded-lg border border-slate-200 mt-2">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-slate-600 shadow-sm" />
+                <span className="font-bold text-slate-900">Total General</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-slate-900">
+                  {currentTotal.count}
+                </div>
+                <div className="text-xs font-bold text-slate-600">
+                  $ {currentTotal.revenue.toLocaleString("es-AR")}
+                </div>
+              </div>
+            </div>
           </div>
         </Card>
 
-        {/* ANÁLISIS POR PRESENTACIÓN */}
+        {/* COLUMNA DERECHA: ANÁLISIS POR PRESENTACIÓN */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-slate-500" />
@@ -190,12 +250,13 @@ export default function ReportsView() {
                       className="hover:bg-slate-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 font-medium text-slate-700 flex items-center gap-2">
-                        {index === 0 && (
-                          <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none text-[10px] px-1.5 py-0 h-5">
-                            Top
-                          </Badge>
-                        )}
+                        {/* 1. NOMBRE PRIMERO */}
                         {item.name}
+
+                        {/* 2. ESTRELLA DESPUÉS (SOLO SI ES TOP 1) */}
+                        {index === 0 && (
+                          <Star className="w-4 h-4 text-amber-500 fill-current animate-in zoom-in spin-in-12 duration-500" />
+                        )}
                       </td>
                       <td className="px-6 py-4 text-center text-slate-600">
                         {item.units}
@@ -211,7 +272,7 @@ export default function ReportsView() {
                       colSpan={3}
                       className="px-6 py-8 text-center text-slate-400"
                     >
-                      No se registraron ventas en este período.
+                      No hay datos para este período.
                     </td>
                   </tr>
                 )}

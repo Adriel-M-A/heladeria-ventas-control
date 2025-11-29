@@ -13,48 +13,6 @@ const dbPath = app.isPackaged
 const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
 
-// --- HELPER DE FECHAS (Movido arriba para uso global) ---
-const getStartDate = (period) => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  if (period === "today") {
-    return today.toISOString();
-  }
-  if (period === "yesterday") {
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString();
-  }
-  if (period === "week") {
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(today.setDate(diff));
-    return monday.toISOString();
-  }
-  if (period === "month") {
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    return firstDay.toISOString();
-  }
-  return null;
-};
-
-// Función auxiliar para rango de fechas (Ayer específico)
-const getPeriodRange = (period) => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  if (period === "today") return { start: today.toISOString(), end: null };
-  if (period === "yesterday") {
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return { start: yesterday.toISOString(), end: today.toISOString() };
-  }
-  // Reutilizamos la lógica simple para el resto
-  const start = getStartDate(period);
-  return { start, end: null };
-};
-
 export function initDB() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS presentations (
@@ -104,7 +62,32 @@ export function deletePresentation(id) {
   return id;
 }
 
-// --- VENTAS FILTRADAS POR DÍA ACTUAL ---
+// --- HELPER DE FECHAS (Movido arriba para uso global) ---
+const getStartDate = (period) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (period === "today") {
+    return today.toISOString();
+  }
+  if (period === "yesterday") {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString();
+  }
+  if (period === "week") {
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    return monday.toISOString();
+  }
+  if (period === "month") {
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    return firstDay.toISOString();
+  }
+  return null;
+};
+
 export function getSales(type) {
   const startOfDay = getStartDate("today");
 
@@ -137,7 +120,6 @@ export function addSale(sale) {
   return { id: info.lastInsertRowid, ...sale };
 }
 
-// --- ESTADÍSTICAS FILTRADAS POR DÍA ACTUAL ---
 export function getStats() {
   const startOfDay = getStartDate("today");
 
@@ -163,16 +145,60 @@ export function getStats() {
   };
 }
 
-// --- REPORTES (Mantiene su lógica flexible) ---
-export function getReports(period) {
-  const cardPeriods = ["today", "yesterday", "week", "month", "total"];
+// --- LOGICA DE RANGOS DE FECHAS (Actualizada para Custom) ---
+const getPeriodRange = (period, customRange) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (period === "today") return { start: today.toISOString(), end: null };
+
+  if (period === "yesterday") {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return { start: yesterday.toISOString(), end: today.toISOString() };
+  }
+
+  if (period === "week") {
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    return { start: monday.toISOString(), end: null };
+  }
+
+  if (period === "month") {
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start: firstDay.toISOString(), end: null };
+  }
+
+  // --- NUEVA LÓGICA: RANGO PERSONALIZADO ---
+  if (period === "custom" && customRange?.from && customRange?.to) {
+    // Crear fecha desde el string YYYY-MM-DD
+    // Agregamos 'T00:00:00' para asegurar que se interprete como inicio del día local
+    const fromDate = new Date(customRange.from + "T00:00:00");
+
+    // Para el final, usamos el día siguiente a las 00:00 o el mismo día a las 23:59:59
+    // Usaremos el mismo día a las 23:59:59.999
+    const toDate = new Date(customRange.to + "T23:59:59.999");
+
+    return {
+      start: fromDate.toISOString(),
+      end: toDate.toISOString(),
+    };
+  }
+
+  return { start: null, end: null };
+};
+
+export function getReports(period, customRange) {
+  // 1. Calcular totales para las tarjetas predefinidas
+  const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
 
   const queryTotal = (start, end) => {
     let sql = "SELECT COUNT(*) as count, SUM(total) as revenue FROM sales";
     const conditions = [];
     if (start) conditions.push(`date >= '${start}'`);
-    if (end) conditions.push(`date < '${end}'`);
+    if (end) conditions.push(`date <= '${end}'`); // Cambiado a <= para incluir el último milisegundo
 
     if (conditions.length > 0) {
       sql += " WHERE " + conditions.join(" AND ");
@@ -187,12 +213,25 @@ export function getReports(period) {
     cards[p] = queryTotal(start, end);
   });
 
-  const { start: selectedStart, end: selectedEnd } = getPeriodRange(period);
+  // Calcular la tarjeta "Custom" dinámicamente si está seleccionada
+  if (period === "custom") {
+    const { start, end } = getPeriodRange("custom", customRange);
+    cards["custom"] = queryTotal(start, end);
+  } else {
+    // Si no está seleccionada, poner ceros o lo que sea, se actualizará al seleccionar
+    cards["custom"] = { count: 0, revenue: 0 };
+  }
+
+  // 2. Obtener detalles para los gráficos
+  const { start: selectedStart, end: selectedEnd } = getPeriodRange(
+    period,
+    customRange
+  );
 
   let whereClause = "";
   const conditions = [];
   if (selectedStart) conditions.push(`date >= '${selectedStart}'`);
-  if (selectedEnd) conditions.push(`date < '${selectedEnd}'`);
+  if (selectedEnd) conditions.push(`date <= '${selectedEnd}'`);
 
   if (conditions.length > 0) {
     whereClause = "WHERE " + conditions.join(" AND ");
