@@ -12,6 +12,15 @@ import {
   CalendarRange,
   Star,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { cn } from "@/lib/utils";
 
 export default function ReportsView() {
@@ -49,6 +58,17 @@ export default function ReportsView() {
     setCustomRange((prev) => ({ ...prev, [name]: value }));
   };
 
+  const formatXAxis = (tick) => {
+    if (!data?.details?.isDaily) {
+      return `${tick}:00`;
+    }
+    const date = new Date(tick + "T00:00:00");
+    return date.toLocaleDateString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  };
+
   if (!data && !loading) return <div>No hay datos disponibles.</div>;
 
   const cardConfig = [
@@ -71,7 +91,6 @@ export default function ReportsView() {
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-      {/* HEADER & DATE PICKER */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -108,7 +127,6 @@ export default function ReportsView() {
         )}
       </div>
 
-      {/* FILTROS / TARJETAS SUPERIORES */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {cardConfig.map((card) => {
           const stats = data?.cards[card.id] || { count: 0, revenue: 0 };
@@ -142,25 +160,20 @@ export default function ReportsView() {
         })}
       </div>
 
-      {/* SECCIÓN INFERIOR - DOS COLUMNAS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* COLUMNA IZQUIERDA: VENTAS POR TIPO */}
-        <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start h-full">
+        {/* COLUMNA 1: VENTAS POR TIPO */}
+        <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
             <PieChart className="w-4 h-4 text-slate-500" />
             <div>
               <h3 className="text-slate-900 font-bold text-sm">
                 Ventas por Tipo
               </h3>
-              <p className="text-slate-500 text-xs">
-                Distribución de ventas (
-                {cardConfig.find((c) => c.id === period)?.label})
-              </p>
+              <p className="text-slate-500 text-xs">Distribución de ventas</p>
             </div>
           </div>
 
-          <div className="p-6 space-y-4">
-            {/* Local */}
+          <div className="p-6 space-y-4 flex-1">
             <div className="flex items-center justify-between p-4 bg-sale-local/10 rounded-lg border border-sale-local/20">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-sale-local shadow-sm" />
@@ -179,7 +192,6 @@ export default function ReportsView() {
               </div>
             </div>
 
-            {/* PedidosYa */}
             <div className="flex items-center justify-between p-4 bg-sale-delivery/10 rounded-lg border border-sale-delivery/20">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-sale-delivery shadow-sm" />
@@ -198,8 +210,7 @@ export default function ReportsView() {
               </div>
             </div>
 
-            {/* Total General */}
-            <div className="flex items-center justify-between p-4 bg-slate-100 rounded-lg border border-slate-200 mt-2">
+            <div className="flex items-center justify-between p-4 bg-slate-100 rounded-lg border border-slate-200 mt-auto">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-slate-600 shadow-sm" />
                 <span className="font-bold text-slate-900">Total General</span>
@@ -216,29 +227,23 @@ export default function ReportsView() {
           </div>
         </Card>
 
-        {/* COLUMNA DERECHA: ANÁLISIS POR PRESENTACIÓN */}
-        <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+        {/* COLUMNA 2: ANÁLISIS POR PRESENTACIÓN */}
+        <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
             <TrendingUp className="w-4 h-4 text-slate-500" />
             <div>
-              <h3 className="text-slate-900 font-bold text-sm">
-                Análisis por Presentación
-              </h3>
-              <p className="text-slate-500 text-xs">
-                Rendimiento ({cardConfig.find((c) => c.id === period)?.label})
-              </p>
+              <h3 className="text-slate-900 font-bold text-sm">Ranking</h3>
+              <p className="text-slate-500 text-xs">Rendimiento por producto</p>
             </div>
           </div>
 
-          <div className="p-0">
+          <div className="p-0 flex-1 overflow-auto max-h-[400px]">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-white border-b border-slate-100">
+              <thead className="text-xs text-slate-500 uppercase bg-white border-b border-slate-100 sticky top-0 z-10">
                 <tr>
-                  <th className="px-6 py-3 font-medium">Presentación</th>
-                  <th className="px-6 py-3 font-medium text-center">
-                    Unidades
-                  </th>
-                  <th className="px-6 py-3 font-medium text-right">Total</th>
+                  <th className="px-4 py-3 font-medium">Nombre</th>
+                  <th className="px-4 py-3 font-medium text-center">Unid.</th>
+                  <th className="px-4 py-3 font-medium text-right">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -248,17 +253,22 @@ export default function ReportsView() {
                       key={item.name}
                       className="hover:bg-slate-50/50 transition-colors"
                     >
-                      <td className="px-6 py-4 font-medium text-slate-700 flex items-center gap-2">
-                        {item.name}
+                      <td className="px-4 py-3 font-medium text-slate-700 flex items-center gap-2">
                         {index === 0 && (
-                          <Star className="w-4 h-4 text-amber-500 fill-current animate-in zoom-in spin-in-12 duration-500" />
+                          <Star className="w-3 h-3 text-amber-500 fill-current shrink-0" />
                         )}
+                        <span
+                          className="truncate max-w-[100px]"
+                          title={item.name}
+                        >
+                          {item.name}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 text-center text-slate-600">
+                      <td className="px-4 py-3 text-center text-slate-600">
                         {item.units}
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-900">
-                        $ {item.revenue.toLocaleString("es-AR")}
+                      <td className="px-4 py-3 text-right font-bold text-slate-900">
+                        ${item.revenue.toLocaleString("es-AR")}
                       </td>
                     </tr>
                   ))
@@ -266,14 +276,81 @@ export default function ReportsView() {
                   <tr>
                     <td
                       colSpan={3}
-                      className="px-6 py-8 text-center text-slate-400"
+                      className="px-4 py-8 text-center text-slate-400"
                     >
-                      No hay datos para este período.
+                      Sin datos.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </Card>
+
+        {/* COLUMNA 3: TENDENCIA DE VENTAS */}
+        <Card className="border-slate-200 shadow-sm bg-white h-full flex flex-col p-0 overflow-hidden">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
+            <TrendingUp className="w-4 h-4 text-blue-600" />
+            <div>
+              <h3 className="text-slate-900 font-bold text-sm">Tendencia</h3>
+              <p className="text-slate-500 text-xs">
+                Ingresos ({data?.details?.isDaily ? "día" : "hora"})
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 flex-1 min-h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data?.details?.trend || []}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#e2e8f0"
+                />
+                <XAxis
+                  dataKey="label"
+                  tickFormatter={formatXAxis}
+                  stroke="#64748b"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  dy={10}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  stroke="#64748b"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `$${value}`}
+                  width={60}
+                />
+                <Tooltip
+                  cursor={{ fill: "#f1f5f9" }}
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value) => [
+                    `$ ${value.toLocaleString("es-AR")}`,
+                    "Ingresos",
+                  ]}
+                  labelFormatter={(label) =>
+                    data?.details?.isDaily
+                      ? new Date(label + "T00:00:00").toLocaleDateString()
+                      : `${label}:00 Hs`
+                  }
+                />
+                <Bar
+                  dataKey="total"
+                  fill="hsl(221.2 83.2% 53.3%)"
+                  radius={[4, 4, 0, 0]}
+                  barSize={30}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </Card>
       </div>

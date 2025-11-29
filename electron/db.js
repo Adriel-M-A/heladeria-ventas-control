@@ -62,7 +62,6 @@ export function deletePresentation(id) {
   return id;
 }
 
-// --- HELPER DE FECHAS (Movido arriba para uso global) ---
 const getStartDate = (period) => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -145,7 +144,6 @@ export function getStats() {
   };
 }
 
-// --- LOGICA DE RANGOS DE FECHAS (Actualizada para Custom) ---
 const getPeriodRange = (period, customRange) => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -170,14 +168,8 @@ const getPeriodRange = (period, customRange) => {
     return { start: firstDay.toISOString(), end: null };
   }
 
-  // --- NUEVA LÓGICA: RANGO PERSONALIZADO ---
   if (period === "custom" && customRange?.from && customRange?.to) {
-    // Crear fecha desde el string YYYY-MM-DD
-    // Agregamos 'T00:00:00' para asegurar que se interprete como inicio del día local
     const fromDate = new Date(customRange.from + "T00:00:00");
-
-    // Para el final, usamos el día siguiente a las 00:00 o el mismo día a las 23:59:59
-    // Usaremos el mismo día a las 23:59:59.999
     const toDate = new Date(customRange.to + "T23:59:59.999");
 
     return {
@@ -190,7 +182,6 @@ const getPeriodRange = (period, customRange) => {
 };
 
 export function getReports(period, customRange) {
-  // 1. Calcular totales para las tarjetas predefinidas
   const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
 
@@ -198,7 +189,7 @@ export function getReports(period, customRange) {
     let sql = "SELECT COUNT(*) as count, SUM(total) as revenue FROM sales";
     const conditions = [];
     if (start) conditions.push(`date >= '${start}'`);
-    if (end) conditions.push(`date <= '${end}'`); // Cambiado a <= para incluir el último milisegundo
+    if (end) conditions.push(`date <= '${end}'`);
 
     if (conditions.length > 0) {
       sql += " WHERE " + conditions.join(" AND ");
@@ -213,16 +204,13 @@ export function getReports(period, customRange) {
     cards[p] = queryTotal(start, end);
   });
 
-  // Calcular la tarjeta "Custom" dinámicamente si está seleccionada
   if (period === "custom") {
     const { start, end } = getPeriodRange("custom", customRange);
     cards["custom"] = queryTotal(start, end);
   } else {
-    // Si no está seleccionada, poner ceros o lo que sea, se actualizará al seleccionar
     cards["custom"] = { count: 0, revenue: 0 };
   }
 
-  // 2. Obtener detalles para los gráficos
   const { start: selectedStart, end: selectedEnd } = getPeriodRange(
     period,
     customRange
@@ -268,11 +256,28 @@ export function getReports(period, customRange) {
     )
     .all();
 
+  const isDaily = ["week", "month"].includes(period) || period === "custom";
+  const timeFormat = isDaily ? "%Y-%m-%d" : "%H";
+
+  const trend = db
+    .prepare(
+      `
+    SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total
+    FROM sales 
+    ${whereClause} 
+    GROUP BY label 
+    ORDER BY label ASC
+  `
+    )
+    .all();
+
   return {
     cards,
     details: {
       channels: channelData,
       presentations,
+      trend,
+      isDaily,
     },
   };
 }
