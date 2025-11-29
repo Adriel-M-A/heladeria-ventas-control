@@ -20,7 +20,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { useProducts } from "@/hooks/useProducts"; // Importamos el hook
+import { useProducts } from "@/hooks/useProducts";
 
 export default function ProductManager() {
   const {
@@ -63,13 +63,28 @@ export default function ProductManager() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (confirm("¿Seguro que deseas eliminar esta presentación?")) {
-      await deleteProduct(id);
-    }
+  // --- MEJORA VISUAL AQUÍ ---
+  const handleDelete = (id) => {
+    toast("¿Seguro que deseas eliminar este producto?", {
+      description: "Esta acción no se puede deshacer.",
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          const success = await deleteProduct(id);
+          // Si estamos editando el que borramos, limpiamos el form
+          if (success && editingProdId === id) {
+            setProdForm({ name: "", price: "" });
+            setEditingProdId(null);
+          }
+        },
+      },
+      cancel: {
+        label: "Cancelar",
+      },
+      duration: 5000,
+    });
   };
 
-  // Lógica visual de ordenamiento (se queda aquí porque es solo de UI)
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {

@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Trash2, AlertCircle } from "lucide-react"; // Iconos nuevos
+import { ChevronLeft, ChevronRight, Trash2, AlertCircle } from "lucide-react";
 import { cn, formatError } from "@/lib/utils";
-import { toast } from "sonner"; // Para notificar
+import { toast } from "sonner";
 
 export default function SalesTable({ type = "local" }) {
   const [sales, setSales] = useState([]);
@@ -37,31 +37,33 @@ export default function SalesTable({ type = "local" }) {
     }
   };
 
-  // Se ejecuta al cambiar tipo o página
   useEffect(() => {
     fetchSales();
   }, [type, page]);
 
-  // NUEVA LÓGICA DE CANCELACIÓN
+  // --- MEJORA VISUAL AQUÍ ---
   const handleCancelSale = async (id) => {
-    // Usamos confirm nativo por rapidez, aunque podríamos usar un Dialog de UI
-    if (
-      !window.confirm(
-        "¿Estás seguro de que deseas cancelar esta venta? Esta acción descontará el dinero de la caja."
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await window.electronAPI.deleteSale(id);
-      toast.success("Venta cancelada correctamente");
-      // Recargamos la tabla para ver los cambios
-      fetchSales();
-    } catch (err) {
-      console.error(err);
-      toast.error(formatError(err));
-    }
+    toast("¿Cancelar esta venta?", {
+      description:
+        "El monto se descontará de la caja y afectará las estadísticas.",
+      action: {
+        label: "Confirmar Cancelación",
+        onClick: async () => {
+          try {
+            await window.electronAPI.deleteSale(id);
+            toast.success("Venta cancelada correctamente");
+            fetchSales();
+          } catch (err) {
+            console.error(err);
+            toast.error(formatError(err));
+          }
+        },
+      },
+      cancel: {
+        label: "Volver",
+      },
+      duration: 6000, // Un poco más de tiempo para leer porque es una acción delicada
+    });
   };
 
   const formatDate = (isoString) => {
