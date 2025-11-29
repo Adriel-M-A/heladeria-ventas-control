@@ -6,13 +6,54 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// CORRECCIÓN AQUÍ: Usamos "../" para apuntar a la raíz del proyecto
 const dbPath = app.isPackaged
   ? path.join(app.getPath("userData"), "heladeria.db")
   : path.join(__dirname, "../heladeria.db");
 
 const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
+
+// --- HELPER DE FECHAS (Movido arriba para uso global) ---
+const getStartDate = (period) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (period === "today") {
+    return today.toISOString();
+  }
+  if (period === "yesterday") {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString();
+  }
+  if (period === "week") {
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    return monday.toISOString();
+  }
+  if (period === "month") {
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    return firstDay.toISOString();
+  }
+  return null;
+};
+
+// Función auxiliar para rango de fechas (Ayer específico)
+const getPeriodRange = (period) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (period === "today") return { start: today.toISOString(), end: null };
+  if (period === "yesterday") {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return { start: yesterday.toISOString(), end: today.toISOString() };
+  }
+  // Reutilizamos la lógica simple para el resto
+  const start = getStartDate(period);
+  return { start, end: null };
+};
 
 export function initDB() {
   db.exec(`
@@ -63,15 +104,20 @@ export function deletePresentation(id) {
   return id;
 }
 
+// --- VENTAS FILTRADAS POR DÍA ACTUAL ---
 export function getSales(type) {
+  const startOfDay = getStartDate("today");
+
   if (type && type !== "all") {
     const stmt = db.prepare(
-      "SELECT * FROM sales WHERE type = ? ORDER BY id DESC"
+      "SELECT * FROM sales WHERE type = ? AND date >= ? ORDER BY id DESC"
     );
-    return stmt.all(type);
+    return stmt.all(type, startOfDay);
   }
-  const stmt = db.prepare("SELECT * FROM sales ORDER BY id DESC");
-  return stmt.all();
+  const stmt = db.prepare(
+    "SELECT * FROM sales WHERE date >= ? ORDER BY id DESC"
+  );
+  return stmt.all(startOfDay);
 }
 
 export function addSale(sale) {
@@ -91,17 +137,21 @@ export function addSale(sale) {
   return { id: info.lastInsertRowid, ...sale };
 }
 
+// --- ESTADÍSTICAS FILTRADAS POR DÍA ACTUAL ---
 export function getStats() {
+  const startOfDay = getStartDate("today");
+
   const local = db
     .prepare(
-      "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'local'"
+      "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'local' AND date >= ?"
     )
-    .get();
+    .get(startOfDay);
+
   const pedidosYa = db
     .prepare(
-      "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'pedidos_ya'"
+      "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'pedidos_ya' AND date >= ?"
     )
-    .get();
+    .get(startOfDay);
 
   return {
     local: { count: local.count || 0, total: local.total || 0 },
@@ -113,32 +163,7 @@ export function getStats() {
   };
 }
 
-// Lógica de fechas corregida para Reportes
-const getPeriodRange = (period) => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  if (period === "today") {
-    return { start: today.toISOString(), end: null };
-  }
-  if (period === "yesterday") {
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return { start: yesterday.toISOString(), end: today.toISOString() };
-  }
-  if (period === "week") {
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(today.setDate(diff));
-    return { start: monday.toISOString(), end: null };
-  }
-  if (period === "month") {
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { start: firstDay.toISOString(), end: null };
-  }
-  return { start: null, end: null };
-};
-
+// --- REPORTES (Mantiene su lógica flexible) ---
 export function getReports(period) {
   const cardPeriods = ["today", "yesterday", "week", "month", "total"];
   const cards = {};
