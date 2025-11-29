@@ -27,14 +27,11 @@ export default function SalesTable({ type = "local" }) {
     fetchSales();
   }, [type]);
 
-  // Función para formatear la fecha ISO a algo legible
   const formatDate = (isoString) => {
     try {
       if (!isoString) return "-";
       const date = new Date(isoString);
-
       if (isNaN(date.getTime())) return isoString;
-
       return date.toLocaleString("es-AR", {
         day: "2-digit",
         month: "2-digit",
@@ -50,14 +47,16 @@ export default function SalesTable({ type = "local" }) {
 
   const theme = {
     headerBg: isPedidosYa
-      ? "bg-rose-600 border-rose-700"
-      : "bg-blue-600 border-blue-700",
+      ? "bg-sale-delivery border-sale-delivery"
+      : "bg-sale-local border-sale-local",
     tableHeaderRow: isPedidosYa
-      ? "bg-rose-50 border-rose-100"
-      : "bg-slate-50 border-slate-100",
-    headerText: isPedidosYa ? "text-rose-700" : "text-blue-700",
-    priceText: isPedidosYa ? "text-rose-600" : "text-blue-600",
-    hoverRow: isPedidosYa ? "hover:bg-rose-50/40" : "hover:bg-slate-50/60",
+      ? "bg-sale-delivery/10 border-sale-delivery/20"
+      : "bg-sale-local/10 border-sale-local/20",
+    headerText: isPedidosYa ? "text-sale-delivery" : "text-sale-local",
+    priceText: isPedidosYa ? "text-sale-delivery" : "text-sale-local",
+    hoverRow: isPedidosYa
+      ? "hover:bg-sale-delivery/5"
+      : "hover:bg-sale-local/5",
   };
 
   return (

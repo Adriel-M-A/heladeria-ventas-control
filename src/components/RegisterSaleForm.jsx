@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-// AQUÍ EL CAMBIO: Recibimos onTypeChange
 export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
   const [presentations, setPresentations] = useState([]);
   const [formData, setFormData] = useState({
@@ -88,13 +87,14 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     }
   };
 
+  // USANDO LAS VARIABLES GLOBALES
   const theme = {
     badge: isPedidosYa
-      ? "bg-rose-100 text-rose-700 border-rose-200"
-      : "bg-blue-100 text-blue-700 border-blue-200",
+      ? "bg-sale-delivery/10 text-sale-delivery border-sale-delivery/20"
+      : "bg-sale-local/10 text-sale-local border-sale-local/20",
     button: isPedidosYa
-      ? "bg-rose-600 hover:bg-rose-700"
-      : "bg-blue-600 hover:bg-blue-700",
+      ? "bg-sale-delivery hover:bg-sale-delivery/90"
+      : "bg-sale-local hover:bg-sale-local/90",
   };
 
   const selectItemStyles =
@@ -169,15 +169,12 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
             </Select>
           </div>
 
-          {/* 3. Tipo de Venta */}
           <div className="space-y-2">
             <Label className="text-slate-600 font-medium">Tipo de Venta</Label>
             <Select
               value={formData.type}
               onValueChange={(val) => {
-                // Actualizamos el estado local del formulario
                 setFormData({ ...formData, type: val });
-                // Y AVISAMOS AL PADRE (SalesView) para que cambie la tabla
                 if (onTypeChange) onTypeChange(val);
               }}
             >
@@ -187,13 +184,13 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
               <SelectContent>
                 <SelectItem value="local" className={selectItemStyles}>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <div className="w-2 h-2 rounded-full bg-sale-local" />
                     <span>Local</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="pedidos_ya" className={selectItemStyles}>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-rose-500" />
+                    <div className="w-2 h-2 rounded-full bg-sale-delivery" />
                     <span>PedidosYa</span>
                   </div>
                 </SelectItem>

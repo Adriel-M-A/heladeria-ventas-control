@@ -109,11 +109,6 @@ export default function ReportsView() {
       </div>
 
       {/* FILTROS / TARJETAS SUPERIORES */}
-      {/* CORRECCIÓN DE RESPONSIVIDAD: 
-          - Móvil: 2 columnas
-          - Tablet/Laptop (md): 3 columnas (evita el aplastamiento)
-          - Pantalla Grande (xl): 5 columnas
-      */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {cardConfig.map((card) => {
           const stats = data?.cards[card.id] || { count: 0, revenue: 0 };
@@ -126,7 +121,7 @@ export default function ReportsView() {
               className={cn(
                 "bg-white p-6 rounded-xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md",
                 isSelected
-                  ? "border-blue-600 ring-1 ring-blue-600 bg-blue-50/10"
+                  ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/10"
                   : "border-slate-200 hover:border-blue-300"
               )}
             >
@@ -166,13 +161,13 @@ export default function ReportsView() {
 
           <div className="p-6 space-y-4">
             {/* Local */}
-            <div className="flex items-center justify-between p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+            <div className="flex items-center justify-between p-4 bg-sale-local/10 rounded-lg border border-sale-local/20">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm" />
+                <div className="w-3 h-3 rounded-full bg-sale-local shadow-sm" />
                 <span className="font-medium text-slate-700">Local</span>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-blue-700">
+                <div className="text-xl font-bold text-sale-local">
                   {data?.details.channels.local.count || 0}
                 </div>
                 <div className="text-xs font-medium text-slate-500">
@@ -185,13 +180,13 @@ export default function ReportsView() {
             </div>
 
             {/* PedidosYa */}
-            <div className="flex items-center justify-between p-4 bg-rose-50/50 rounded-lg border border-rose-100">
+            <div className="flex items-center justify-between p-4 bg-sale-delivery/10 rounded-lg border border-sale-delivery/20">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-rose-500 shadow-sm" />
+                <div className="w-3 h-3 rounded-full bg-sale-delivery shadow-sm" />
                 <span className="font-medium text-slate-700">PedidosYa</span>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-rose-700">
+                <div className="text-xl font-bold text-sale-delivery">
                   {data?.details.channels.pedidosYa.count || 0}
                 </div>
                 <div className="text-xs font-medium text-slate-500">
@@ -254,10 +249,7 @@ export default function ReportsView() {
                       className="hover:bg-slate-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 font-medium text-slate-700 flex items-center gap-2">
-                        {/* NOMBRE */}
                         {item.name}
-
-                        {/* ESTRELLA (SOLO SI ES TOP 1) */}
                         {index === 0 && (
                           <Star className="w-4 h-4 text-amber-500 fill-current animate-in zoom-in spin-in-12 duration-500" />
                         )}

@@ -50,43 +50,44 @@ export default function SalesView() {
       </div>
 
       <div className="grid gap-6">
-        {/* AQUÍ EL CAMBIO: Pasamos onTypeChange para sincronizar la tabla */}
         <RegisterSaleForm
           onSaleSuccess={handleSaleAdded}
           onTypeChange={setActiveSaleTab}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col justify-between h-32">
+          {/* Tarjeta Local */}
+          <div className="bg-sale-local/5 border border-sale-local/20 rounded-xl p-6 flex flex-col justify-between h-32">
             <div className="flex justify-between items-start">
-              <span className="text-blue-600 font-medium text-sm">
+              <span className="text-sale-local font-medium text-sm">
                 Ventas Local
               </span>
-              <CreditCard className="w-4 h-4 text-blue-500 opacity-70" />
+              <CreditCard className="w-4 h-4 text-sale-local/70" />
             </div>
             <div>
               <span className="text-2xl font-bold text-slate-900">
                 {stats.local.count}
               </span>
-              <div className="text-xs text-blue-600 font-medium mt-1 flex justify-between">
+              <div className="text-xs text-sale-local font-medium mt-1 flex justify-between">
                 <span>Total</span>
                 <span>$ {stats.local.total.toLocaleString("es-AR")}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-rose-50 border border-rose-100 rounded-xl p-6 flex flex-col justify-between h-32">
+          {/* Tarjeta PedidosYa */}
+          <div className="bg-sale-delivery/5 border border-sale-delivery/20 rounded-xl p-6 flex flex-col justify-between h-32">
             <div className="flex justify-between items-start">
-              <span className="text-rose-600 font-medium text-sm">
+              <span className="text-sale-delivery font-medium text-sm">
                 Ventas PedidosYa
               </span>
-              <TrendingUp className="w-4 h-4 text-rose-500 opacity-70" />
+              <TrendingUp className="w-4 h-4 text-sale-delivery/70" />
             </div>
             <div>
               <span className="text-2xl font-bold text-slate-900">
                 {stats.pedidosYa.count}
               </span>
-              <div className="text-xs text-rose-600 font-medium mt-1 flex justify-between">
+              <div className="text-xs text-sale-delivery font-medium mt-1 flex justify-between">
                 <span>Total</span>
                 <span>$ {stats.pedidosYa.total.toLocaleString("es-AR")}</span>
               </div>
@@ -110,14 +111,13 @@ export default function SalesView() {
           </div>
         </div>
 
-        {/* Botones de pestaña (Siguen funcionando manualmente si quieres) */}
         <div className="flex gap-2 bg-slate-100 p-1 rounded-lg w-fit mx-auto">
           <button
             onClick={() => setActiveSaleTab("local")}
             className={cn(
               "w-40 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
               activeSaleTab === "local"
-                ? "bg-blue-600 text-white shadow-sm"
+                ? "bg-sale-local text-white shadow-sm"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
             )}
           >
@@ -128,7 +128,7 @@ export default function SalesView() {
             className={cn(
               "w-40 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
               activeSaleTab === "pedidos_ya"
-                ? "bg-rose-600 text-white shadow-sm"
+                ? "bg-sale-delivery text-white shadow-sm"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
             )}
           >
