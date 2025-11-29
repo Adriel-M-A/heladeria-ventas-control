@@ -56,6 +56,19 @@ const migrations = [
       ALTER TABLE promotions ADD COLUMN end_date TEXT;
     `);
   },
+  // MIGRACIÓN 4: Precios Diferenciados (Local vs Delivery)
+  (db) => {
+    db.exec(`
+      -- 1. Agregar columna para precio delivery
+      ALTER TABLE presentations ADD COLUMN price_delivery INTEGER;
+      
+      -- 2. Inicializar price_delivery con el valor del precio actual (para no romper datos)
+      UPDATE presentations SET price_delivery = price;
+      
+      -- 3. Renombrar 'price' a 'price_local'
+      ALTER TABLE presentations RENAME COLUMN price TO price_local;
+    `);
+  },
 ];
 
 function runMigrations() {

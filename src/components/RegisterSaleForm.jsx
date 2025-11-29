@@ -59,33 +59,28 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       return;
     }
 
-    const price = selectedPresentation.price;
+    // LÓGICA DE PRECIO DOBLE:
+    // Seleccionamos el precio base según el tipo de venta elegido
+    const price =
+      formData.type === "pedidos_ya"
+        ? selectedPresentation.price_delivery
+        : selectedPresentation.price_local;
+
     const qty = parseInt(formData.quantity);
     const baseTotal = price * qty;
 
-    // Obtenemos la fecha local actual en formato YYYY-MM-DD para comparar strings
-    // Usamos 'en-CA' que devuelve formato ISO (YYYY-MM-DD)
     const now = new Date();
     const todayStr = now.toLocaleDateString("en-CA");
-    const dayOfWeek = now.getDay(); // 0 = Domingo
+    const dayOfWeek = now.getDay();
 
     const applicablePromo = promotions.find((p) => {
-      // 1. Coincide producto
       if (p.presentation_id !== selectedPresentation.id) return false;
-      // 2. Está activa globalmente
       if (p.is_active !== 1) return false;
-      // 3. Alcanza cantidad mínima
       if (qty < p.min_quantity) return false;
 
-      // 4. Verificación de FECHAS (Prioridad sobre días)
-      // Si tiene fecha de inicio, hoy debe ser >= inicio
       if (p.start_date && todayStr < p.start_date) return false;
-      // Si tiene fecha fin, hoy debe ser <= fin
       if (p.end_date && todayStr > p.end_date) return false;
 
-      // 5. Verificación de DÍAS DE SEMANA
-      // Si el campo está vacío, se asume todos los días.
-      // Si no está vacío, verificamos que el día actual esté en la lista.
       if (p.active_days && p.active_days !== "") {
         const activeDaysList = p.active_days.split(",").map(Number);
         if (!activeDaysList.includes(dayOfWeek)) return false;
@@ -139,10 +134,16 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       return;
     }
 
+    // Seleccionamos el precio unitario correcto para guardarlo en el historial
+    const currentUnitPrice =
+      formData.type === "pedidos_ya"
+        ? selectedPresentation.price_delivery
+        : selectedPresentation.price_local;
+
     const saleData = {
       type: formData.type,
       presentation_name: selectedPresentation.name,
-      price_base: selectedPresentation.price,
+      price_base: currentUnitPrice, // Guardamos el precio unitario que correspondía (local o delivery)
       quantity: parseInt(formData.quantity),
       total: calculation.total,
       date: new Date().toISOString(),
@@ -195,6 +196,35 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       <CardContent className="pt-6 grid gap-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
+            <Label className="text-slate-600 font-medium">Tipo de Venta</Label>
+            <Select
+              value={formData.type}
+              onValueChange={(val) => {
+                setFormData({ ...formData, type: val });
+                if (onTypeChange) onTypeChange(val);
+              }}
+            >
+              <SelectTrigger className="bg-white border-slate-200 focus:ring-0 focus:ring-offset-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local" className={selectItemStyles}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-sale-local" />
+                    <span>Local</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="pedidos_ya" className={selectItemStyles}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-sale-delivery" />
+                    <span>PedidosYa</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label className="text-slate-600 font-medium">Presentación</Label>
             <Select
               value={formData.presentationId}
@@ -217,7 +247,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
                       value={p.id.toString()}
                       className={selectItemStyles}
                     >
-                      {p.name} - $ {p.price.toLocaleString("es-AR")}
+                      {p.name}
                     </SelectItem>
                   ))
                 )}
@@ -246,35 +276,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
                     {num} {num === 1 ? "unidad" : "unidades"}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-slate-600 font-medium">Tipo de Venta</Label>
-            <Select
-              value={formData.type}
-              onValueChange={(val) => {
-                setFormData({ ...formData, type: val });
-                if (onTypeChange) onTypeChange(val);
-              }}
-            >
-              <SelectTrigger className="bg-white border-slate-200 focus:ring-0 focus:ring-offset-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="local" className={selectItemStyles}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-sale-local" />
-                    <span>Local</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="pedidos_ya" className={selectItemStyles}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-sale-delivery" />
-                    <span>PedidosYa</span>
-                  </div>
-                </SelectItem>
               </SelectContent>
             </Select>
           </div>

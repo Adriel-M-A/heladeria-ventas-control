@@ -20,69 +20,96 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { useProducts } from "@/hooks/useProducts";
+import { formatError } from "@/lib/utils";
 
 export default function ProductManager() {
-  const {
-    presentations,
-    fetchPresentations,
-    addProduct,
-    updateProduct,
-    deleteProduct,
-  } = useProducts();
+  const [localPresentations, setLocalPresentations] = useState([]);
 
-  const [prodForm, setProdForm] = useState({ name: "", price: "" });
-  const [editingProdId, setEditingProdId] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-
-  useEffect(() => {
-    fetchPresentations();
-  }, [fetchPresentations]);
-
-  const handleSubmit = async () => {
-    if (!prodForm.name || !prodForm.price)
-      return toast.warning("Complete todos los campos");
-
-    let success = false;
-    if (editingProdId) {
-      success = await updateProduct({
-        id: editingProdId,
-        name: prodForm.name,
-        price: Number(prodForm.price),
-      });
-    } else {
-      success = await addProduct({
-        name: prodForm.name,
-        price: Number(prodForm.price),
-      });
-    }
-
-    if (success) {
-      setProdForm({ name: "", price: "" });
-      setEditingProdId(null);
+  // Reemplazo temporal si no usas el hook:
+  const fetchLocalPresentations = async () => {
+    try {
+      const data = await window.electronAPI.getPresentations();
+      setLocalPresentations(data);
+    } catch (err) {
+      toast.error("Error cargando productos");
     }
   };
 
-  // --- MEJORA VISUAL AQUÍ ---
+  useEffect(() => {
+    fetchLocalPresentations();
+  }, []);
+  // -- FIN LÓGICA --
+
+  const [prodForm, setProdForm] = useState({
+    name: "",
+    price_local: "",
+    price_delivery: "",
+  });
+  const [editingProdId, setEditingProdId] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  const handleSubmit = async () => {
+    if (!prodForm.name || !prodForm.price_local || !prodForm.price_delivery) {
+      return toast.warning("Complete todos los campos");
+    }
+
+    const payload = {
+      name: prodForm.name,
+      price_local: Number(prodForm.price_local),
+      price_delivery: Number(prodForm.price_delivery),
+    };
+
+    try {
+      if (editingProdId) {
+        await window.electronAPI.updatePresentation({
+          id: editingProdId,
+          ...payload,
+        });
+        toast.success("Producto actualizado");
+      } else {
+        await window.electronAPI.addPresentation(payload);
+        toast.success("Producto creado");
+      }
+      setProdForm({ name: "", price_local: "", price_delivery: "" });
+      setEditingProdId(null);
+      fetchLocalPresentations();
+    } catch (err) {
+      toast.error(formatError(err));
+    }
+  };
+
   const handleDelete = (id) => {
     toast("¿Seguro que deseas eliminar este producto?", {
       description: "Esta acción no se puede deshacer.",
       action: {
         label: "Eliminar",
         onClick: async () => {
-          const success = await deleteProduct(id);
-          // Si estamos editando el que borramos, limpiamos el form
-          if (success && editingProdId === id) {
-            setProdForm({ name: "", price: "" });
-            setEditingProdId(null);
+          try {
+            await window.electronAPI.deletePresentation(id);
+            toast.success("Producto eliminado");
+            if (editingProdId === id) {
+              setProdForm({ name: "", price_local: "", price_delivery: "" });
+              setEditingProdId(null);
+            }
+            fetchLocalPresentations();
+          } catch (err) {
+            toast.error(formatError(err));
           }
         },
       },
-      cancel: {
-        label: "Cancelar",
-      },
+      cancel: { label: "Cancelar" },
       duration: 5000,
     });
+  };
+
+  const startEdit = (item) => {
+    setEditingProdId(item.id);
+    setProdForm({
+      name: item.name,
+      price_local: item.price_local,
+      price_delivery: item.price_delivery,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSort = (key) => {
@@ -93,7 +120,7 @@ export default function ProductManager() {
     setSortConfig({ key, direction });
   };
 
-  const sortedPresentations = [...presentations].sort((a, b) => {
+  const sortedPresentations = [...localPresentations].sort((a, b) => {
     if (!sortConfig.key) return 0;
     const aValue = a[sortConfig.key];
     const bValue = b[sortConfig.key];
@@ -110,8 +137,8 @@ export default function ProductManager() {
     if (sortConfig.key !== key)
       return <ArrowUpDown className="w-4 h-4 ml-2 text-slate-300" />;
     if (sortConfig.direction === "asc")
-      return <ArrowUp className="w-4 h-4 ml-2 text-blue-600" />;
-    return <ArrowDown className="w-4 h-4 ml-2 text-blue-600" />;
+      return <ArrowUp className="w-4 h-4 ml-2 text-sale-local" />;
+    return <ArrowDown className="w-4 h-4 ml-2 text-sale-local" />;
   };
 
   return (
@@ -124,8 +151,8 @@ export default function ProductManager() {
             </h3>
             <p className="text-sm text-slate-500">
               {editingProdId
-                ? "Modifique los datos de la presentación"
-                : "Complete los datos de la nueva presentación"}
+                ? "Modifique los precios"
+                : "Defina precios diferenciados"}
             </p>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
@@ -139,17 +166,36 @@ export default function ProductManager() {
                 placeholder="ej: 1 Kilo, 1/2 Kilo"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Precio</Label>
-              <Input
-                type="number"
-                value={prodForm.price}
-                onChange={(e) =>
-                  setProdForm({ ...prodForm, price: e.target.value })
-                }
-                placeholder="ej: 5000"
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                {/* CAMBIO: Uso de text-sale-local */}
+                <Label className="text-sale-local font-bold">
+                  Precio Local
+                </Label>
+                <Input
+                  type="number"
+                  value={prodForm.price_local}
+                  onChange={(e) =>
+                    setProdForm({ ...prodForm, price_local: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                {/* CAMBIO: Uso de text-sale-delivery y etiqueta 'PedidosYa' */}
+                <Label className="text-sale-delivery font-bold">
+                  Precio PedidosYa
+                </Label>
+                <Input
+                  type="number"
+                  value={prodForm.price_delivery}
+                  onChange={(e) =>
+                    setProdForm({ ...prodForm, price_delivery: e.target.value })
+                  }
+                />
+              </div>
             </div>
+
             <div className="pt-2 flex gap-2">
               <Button
                 onClick={handleSubmit}
@@ -167,7 +213,11 @@ export default function ProductManager() {
                 <Button
                   onClick={() => {
                     setEditingProdId(null);
-                    setProdForm({ name: "", price: "" });
+                    setProdForm({
+                      name: "",
+                      price_local: "",
+                      price_delivery: "",
+                    });
                   }}
                   variant="outline"
                   className="w-1/3 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -185,10 +235,10 @@ export default function ProductManager() {
           <CardHeader className="border-b border-slate-100 pb-4 bg-slate-50/50 flex flex-row items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">
-                Presentaciones Registradas
+                Listado de Precios
               </h3>
               <p className="text-sm text-slate-500">
-                Total de presentaciones: {presentations.length}
+                {localPresentations.length} productos registrados
               </p>
             </div>
           </CardHeader>
@@ -204,12 +254,21 @@ export default function ProductManager() {
                       Nombre {getSortIcon("name")}
                     </div>
                   </TableHead>
+                  {/* CAMBIO: Headers con colores personalizados y nombres correctos */}
                   <TableHead
-                    className="w-[30%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                    onClick={() => handleSort("price")}
+                    className="w-[20%] text-sale-local font-bold cursor-pointer select-none"
+                    onClick={() => handleSort("price_local")}
                   >
                     <div className="flex items-center">
-                      Precio {getSortIcon("price")}
+                      Local {getSortIcon("price_local")}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="w-[20%] text-sale-delivery font-bold cursor-pointer select-none"
+                    onClick={() => handleSort("price_delivery")}
+                  >
+                    <div className="flex items-center">
+                      PedidosYa {getSortIcon("price_delivery")}
                     </div>
                   </TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -221,8 +280,12 @@ export default function ProductManager() {
                     <TableCell className="font-medium text-slate-900">
                       {p.name}
                     </TableCell>
-                    <TableCell className="text-slate-600">
-                      $ {p.price.toLocaleString("es-AR")}
+                    {/* CAMBIO: Celdas de precio con colores personalizados */}
+                    <TableCell className="text-sale-local font-medium">
+                      $ {p.price_local?.toLocaleString("es-AR")}
+                    </TableCell>
+                    <TableCell className="text-sale-delivery font-medium">
+                      $ {p.price_delivery?.toLocaleString("es-AR")}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -230,10 +293,7 @@ export default function ProductManager() {
                           size="sm"
                           variant="outline"
                           className="h-8 w-8 p-0 border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50"
-                          onClick={() => {
-                            setEditingProdId(p.id);
-                            setProdForm({ name: p.name, price: p.price });
-                          }}
+                          onClick={() => startEdit(p)}
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
@@ -249,13 +309,13 @@ export default function ProductManager() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {presentations.length === 0 && (
+                {localPresentations.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={3}
+                      colSpan={4}
                       className="h-24 text-center text-slate-500"
                     >
-                      No hay presentaciones cargadas.
+                      No hay productos cargados.
                     </TableCell>
                   </TableRow>
                 )}
