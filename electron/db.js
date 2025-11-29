@@ -10,45 +10,96 @@ const dbPath = app.isPackaged
   ? path.join(app.getPath("userData"), "heladeria.db")
   : path.join(__dirname, "../heladeria.db");
 
-// Cambiamos 'const' por 'let' para poder reconectar
 let db = null;
+
+// --- SISTEMA DE MIGRACIONES ---
+
+// Aquí definimos la historia evolutiva de tu base de datos
+const migrations = [
+  // MIGRACIÓN 1: Estructura base + Tabla de Configuración
+  (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS presentations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS sales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        presentation_name TEXT NOT NULL,
+        price_base INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        total INTEGER NOT NULL,
+        date TEXT NOT NULL
+      );
+
+      -- Nueva tabla para Settings (Configuración)
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+  },
+  // MIGRACIÓN 2 (Futura): Aquí agregarás cambios sin romper lo anterior
+  // Por ejemplo: (db) => db.exec("ALTER TABLE sales ADD COLUMN metodo_pago TEXT")
+];
+
+function runMigrations() {
+  if (!db) return;
+
+  // 1. Obtener versión actual de la base de datos (0 si es nueva)
+  const currentVersion = db.pragma("user_version", { simple: true });
+  console.log(`[DB] Versión actual: ${currentVersion}`);
+
+  let newVersion = currentVersion;
+
+  // 2. Ejecutar solo las migraciones que faltan
+  for (let i = currentVersion; i < migrations.length; i++) {
+    const nextVersion = i + 1;
+    console.log(`[DB] Aplicando migración v${nextVersion}...`);
+
+    // Usamos una transacción para que si falla, no se aplique a medias
+    const runMigration = db.transaction(() => {
+      migrations[i](db); // Ejecutar la función de migración
+      db.pragma(`user_version = ${nextVersion}`); // Actualizar versión
+    });
+
+    try {
+      runMigration();
+      newVersion = nextVersion;
+    } catch (err) {
+      console.error(`[DB] CRITICAL: Error en migración v${nextVersion}:`, err);
+      throw err; // Esto detendrá la carga de la app si la DB falla, es lo seguro
+    }
+  }
+
+  if (newVersion !== currentVersion) {
+    console.log(`[DB] Base de datos actualizada a la versión ${newVersion}`);
+  } else {
+    console.log(`[DB] La base de datos está actualizada.`);
+  }
+}
 
 // --- GESTIÓN DE CONEXIÓN ---
 
 export function connectDB() {
-  if (db) return; // Ya está conectada
+  if (db) return; // Ya conectada
 
-  db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
+  try {
+    db = new Database(dbPath);
+    db.pragma("journal_mode = WAL");
 
-  // Aseguramos que las tablas existan al conectar
-  createTables();
+    // Ejecutamos las migraciones inmediatamente al conectar
+    runMigrations();
+  } catch (error) {
+    console.error("Error al conectar con la base de datos:", error);
+    throw error;
+  }
 }
 
-function createTables() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS presentations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      price INTEGER NOT NULL
-    )
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sales (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL,
-      presentation_name TEXT NOT NULL,
-      price_base INTEGER NOT NULL,
-      quantity INTEGER NOT NULL,
-      total INTEGER NOT NULL,
-      date TEXT NOT NULL
-    )
-  `);
-}
-
-// Mantenemos initDB por compatibilidad si se llamaba desde fuera,
-// pero ahora delega en connectDB
+// Alias para mantener compatibilidad si algo llama a initDB
 export function initDB() {
   connectDB();
 }
@@ -60,7 +111,7 @@ export function closeDB() {
   }
 }
 
-// --- CONSULTAS (Usan la variable 'db' que ahora es dinámica) ---
+// --- CONSULTAS (CRUD) ---
 
 export function getPresentations() {
   if (!db) connectDB();
@@ -127,9 +178,11 @@ export function getSales(type, page = 1, pageSize = 10) {
   const conditions = [];
   const params = [];
 
+  // Filtro 1: Solo ventas de hoy
   conditions.push("date >= ?");
   params.push(startOfDay);
 
+  // Filtro 2: Tipo de venta
   if (type && type !== "all") {
     conditions.push("type = ?");
     params.push(type);
@@ -146,6 +199,7 @@ export function getSales(type, page = 1, pageSize = 10) {
   const stmt = db.prepare(query);
   const rows = stmt.all(...params, pageSize, offset);
 
+  // Para el count quitamos los ultimos 2 params (limit y offset)
   const totalResult = db.prepare(countQuery).get(...params);
   const totalRecords = totalResult.total || 0;
 
@@ -279,7 +333,10 @@ export function getReports(period, customRange, typeFilter = "all") {
     )
     .all();
   const channelData = {
-    local: channels.find((c) => c.type === "local") || { count: 0, revenue: 0 },
+    local: channels.find((c) => c.type === "local") || {
+      count: 0,
+      revenue: 0,
+    },
     pedidosYa: channels.find((c) => c.type === "pedidos_ya") || {
       count: 0,
       revenue: 0,
