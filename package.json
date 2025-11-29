@@ -49,8 +49,8 @@
     "wait-on": "^9.0.3"
   },
   "build": {
-    "appId": "com.heladeria.app",
-    "productName": "HeladeriaControl",
+    "appId": "com.elixir.ventas",
+    "productName": "Elixir",
     "directories": {
       "output": "dist-electron"
     },

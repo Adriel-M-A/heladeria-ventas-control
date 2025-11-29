@@ -16,20 +16,18 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// NOMBRE DE TU APP PARA WINDOWS (Debe coincidir con el appId de package.json)
-const APP_ID = "com.heladeria.app";
+// CAMBIO 1: Actualizar el ID de la app (coincide con package.json)
+const APP_ID = "com.elixir.ventas";
 
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: "Heladería Control",
+    // CAMBIO 2: Título inicial de la ventana
+    title: "Elixir Ventas",
     frame: true,
     autoHideMenuBar: true,
-
-    // Ícono para la barra de título y Alt+Tab
     icon: path.join(__dirname, "../public/icon.ico"),
-
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -48,7 +46,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // ESTA LÍNEA ES LA MAGIA PARA LA BARRA DE TAREAS EN WINDOWS
   app.setAppUserModelId(APP_ID);
 
   initDB();
