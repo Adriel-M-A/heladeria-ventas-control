@@ -151,7 +151,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
                 <SelectValue placeholder="Seleccionar..." />
               </SelectTrigger>
               <SelectContent>
-                {[1, 2, 3, 4, 5, 10, 15, 20].map((num) => (
+                {[1, 2, 3, 4, 5, 6, 7].map((num) => (
                   <SelectItem
                     key={num}
                     value={num.toString()}
