@@ -12,12 +12,22 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Plus,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 
 export default function DataManagement() {
   const [presentations, setPresentations] = useState([]);
   const [formData, setFormData] = useState({ name: "", price: "" });
   const [editingId, setEditingId] = useState(null);
+
+  // Estado para el ordenamiento { key: 'price' | 'name' | null, direction: 'asc' | 'desc' }
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const fetchPresentations = async () => {
     try {
@@ -94,6 +104,45 @@ export default function DataManagement() {
   const handleCancel = () => {
     setEditingId(null);
     setFormData({ name: "", price: "" });
+  };
+
+  // --- LÓGICA DE ORDENAMIENTO ---
+  const handleSort = (key) => {
+    let direction = "asc";
+    // Si ya estamos ordenando por esta columna y es ascendente, cambiamos a descendente
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Creamos una copia ordenada para mostrar, sin mutar el estado original
+  const sortedPresentations = [...presentations].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+
+    const aValue = a[sortConfig.key];
+    const bValue = b[sortConfig.key];
+
+    // Comparación especial para texto (Nombre)
+    if (typeof aValue === "string") {
+      return sortConfig.direction === "asc"
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
+
+    // Comparación para números (Precio)
+    if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Helper para mostrar el icono correcto según el estado
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key)
+      return <ArrowUpDown className="w-4 h-4 ml-2 text-slate-300" />;
+    if (sortConfig.direction === "asc")
+      return <ArrowUp className="w-4 h-4 ml-2 text-blue-600" />;
+    return <ArrowDown className="w-4 h-4 ml-2 text-blue-600" />;
   };
 
   return (
@@ -191,13 +240,31 @@ export default function DataManagement() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-slate-50/50">
-                    <TableHead className="w-[40%]">Nombre</TableHead>
-                    <TableHead className="w-[30%]">Precio</TableHead>
+                    {/* Encabezado NOMBRE ordenable */}
+                    <TableHead
+                      className="w-[40%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      onClick={() => handleSort("name")}
+                    >
+                      <div className="flex items-center">
+                        Nombre {getSortIcon("name")}
+                      </div>
+                    </TableHead>
+
+                    {/* Encabezado PRECIO ordenable */}
+                    <TableHead
+                      className="w-[30%] cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                      onClick={() => handleSort("price")}
+                    >
+                      <div className="flex items-center">
+                        Precio {getSortIcon("price")}
+                      </div>
+                    </TableHead>
+
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {presentations.map((item) => (
+                  {sortedPresentations.map((item) => (
                     <TableRow key={item.id} className="hover:bg-slate-50/50">
                       <TableCell className="font-medium text-slate-900">
                         {item.name}
