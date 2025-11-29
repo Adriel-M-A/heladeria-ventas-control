@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 
 export default function ReportsView() {
   const [period, setPeriod] = useState("today");
+  const [activeType, setActiveType] = useState("all");
+
   const [customRange, setCustomRange] = useState({
     from: new Date().toISOString().split("T")[0],
     to: new Date().toISOString().split("T")[0],
@@ -40,7 +42,8 @@ export default function ReportsView() {
         if (window.electronAPI) {
           const reportData = await window.electronAPI.getReports(
             period,
-            customRange
+            customRange,
+            activeType
           );
           setData(reportData);
         }
@@ -51,7 +54,7 @@ export default function ReportsView() {
       }
     };
     loadReports();
-  }, [period, customRange]);
+  }, [period, customRange, activeType]);
 
   const handleDateChange = (e) => {
     const { name, value } = e.target;
@@ -161,7 +164,7 @@ export default function ReportsView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start h-full">
-        {/* COLUMNA 1: VENTAS POR TIPO */}
+        {/* COLUMNA 1: VENTAS POR TIPO (INTERACTIVA) */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
             <PieChart className="w-4 h-4 text-slate-500" />
@@ -169,21 +172,52 @@ export default function ReportsView() {
               <h3 className="text-slate-900 font-bold text-sm">
                 Ventas por Tipo
               </h3>
-              <p className="text-slate-500 text-xs">Distribución de ventas</p>
+              <p className="text-slate-500 text-xs">Selecciona para filtrar</p>
             </div>
           </div>
 
           <div className="p-6 space-y-4 flex-1">
-            <div className="flex items-center justify-between p-4 bg-sale-local/10 rounded-lg border border-sale-local/20">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-sale-local shadow-sm" />
-                <span className="font-medium text-slate-700">Local</span>
+            {/* Opción LOCAL */}
+            <div
+              onClick={() => setActiveType("local")}
+              className={cn(
+                "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all duration-200 group relative overflow-hidden",
+                activeType === "local"
+                  ? "bg-sale-local text-white border-sale-local shadow-md transform scale-[1.02]"
+                  : "bg-sale-local/10 border-sale-local/20 hover:bg-sale-local/20"
+              )}
+            >
+              <div className="flex items-center gap-3 relative z-10">
+                <div
+                  className={cn(
+                    "w-3 h-3 rounded-full shadow-sm",
+                    activeType === "local" ? "bg-white" : "bg-sale-local"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "font-medium",
+                    activeType === "local" ? "text-white" : "text-slate-700"
+                  )}
+                >
+                  Local
+                </span>
               </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-sale-local">
+              <div className="text-right relative z-10">
+                <div
+                  className={cn(
+                    "text-xl font-bold",
+                    activeType === "local" ? "text-white" : "text-sale-local"
+                  )}
+                >
                   {data?.details.channels.local.count || 0}
                 </div>
-                <div className="text-xs font-medium text-slate-500">
+                <div
+                  className={cn(
+                    "text-xs font-medium",
+                    activeType === "local" ? "text-blue-100" : "text-slate-500"
+                  )}
+                >
                   ${" "}
                   {data?.details.channels.local.revenue.toLocaleString(
                     "es-AR"
@@ -192,16 +226,55 @@ export default function ReportsView() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-sale-delivery/10 rounded-lg border border-sale-delivery/20">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-sale-delivery shadow-sm" />
-                <span className="font-medium text-slate-700">PedidosYa</span>
+            {/* Opción PEDIDOSYA */}
+            <div
+              onClick={() => setActiveType("pedidos_ya")}
+              className={cn(
+                "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all duration-200 group relative overflow-hidden",
+                activeType === "pedidos_ya"
+                  ? "bg-sale-delivery text-white border-sale-delivery shadow-md transform scale-[1.02]"
+                  : "bg-sale-delivery/10 border-sale-delivery/20 hover:bg-sale-delivery/20"
+              )}
+            >
+              <div className="flex items-center gap-3 relative z-10">
+                <div
+                  className={cn(
+                    "w-3 h-3 rounded-full shadow-sm",
+                    activeType === "pedidos_ya"
+                      ? "bg-white"
+                      : "bg-sale-delivery"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "font-medium",
+                    activeType === "pedidos_ya"
+                      ? "text-white"
+                      : "text-slate-700"
+                  )}
+                >
+                  PedidosYa
+                </span>
               </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-sale-delivery">
+              <div className="text-right relative z-10">
+                <div
+                  className={cn(
+                    "text-xl font-bold",
+                    activeType === "pedidos_ya"
+                      ? "text-white"
+                      : "text-sale-delivery"
+                  )}
+                >
                   {data?.details.channels.pedidosYa.count || 0}
                 </div>
-                <div className="text-xs font-medium text-slate-500">
+                <div
+                  className={cn(
+                    "text-xs font-medium",
+                    activeType === "pedidos_ya"
+                      ? "text-rose-100"
+                      : "text-slate-500"
+                  )}
+                >
                   ${" "}
                   {data?.details.channels.pedidosYa.revenue.toLocaleString(
                     "es-AR"
@@ -210,16 +283,47 @@ export default function ReportsView() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-slate-100 rounded-lg border border-slate-200 mt-auto">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-slate-600 shadow-sm" />
-                <span className="font-bold text-slate-900">Total General</span>
+            {/* Opción TOTAL GENERAL */}
+            <div
+              onClick={() => setActiveType("all")}
+              className={cn(
+                "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all duration-200 mt-auto relative overflow-hidden",
+                activeType === "all"
+                  ? "bg-slate-800 text-white border-slate-900 shadow-md transform scale-[1.02]"
+                  : "bg-slate-100 border-slate-200 hover:bg-slate-200"
+              )}
+            >
+              <div className="flex items-center gap-3 relative z-10">
+                <div
+                  className={cn(
+                    "w-3 h-3 rounded-full shadow-sm",
+                    activeType === "all" ? "bg-white" : "bg-slate-600"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "font-bold",
+                    activeType === "all" ? "text-white" : "text-slate-900"
+                  )}
+                >
+                  Total General
+                </span>
               </div>
-              <div className="text-right">
-                <div className="text-xl font-bold text-slate-900">
+              <div className="text-right relative z-10">
+                <div
+                  className={cn(
+                    "text-xl font-bold",
+                    activeType === "all" ? "text-white" : "text-slate-900"
+                  )}
+                >
                   {currentTotal.count}
                 </div>
-                <div className="text-xs font-bold text-slate-600">
+                <div
+                  className={cn(
+                    "text-xs font-bold",
+                    activeType === "all" ? "text-slate-300" : "text-slate-600"
+                  )}
+                >
                   $ {currentTotal.revenue.toLocaleString("es-AR")}
                 </div>
               </div>
@@ -233,7 +337,13 @@ export default function ReportsView() {
             <TrendingUp className="w-4 h-4 text-slate-500" />
             <div>
               <h3 className="text-slate-900 font-bold text-sm">Ranking</h3>
-              <p className="text-slate-500 text-xs">Rendimiento por producto</p>
+              <p className="text-slate-500 text-xs">
+                {activeType === "all"
+                  ? "Todos los canales"
+                  : activeType === "local"
+                  ? "Solo Local"
+                  : "Solo PedidosYa"}
+              </p>
             </div>
           </div>
 
@@ -278,7 +388,7 @@ export default function ReportsView() {
                       colSpan={3}
                       className="px-4 py-8 text-center text-slate-400"
                     >
-                      Sin datos.
+                      Sin datos para este filtro.
                     </td>
                   </tr>
                 )}
@@ -345,7 +455,13 @@ export default function ReportsView() {
                 />
                 <Bar
                   dataKey="total"
-                  fill="hsl(221.2 83.2% 53.3%)"
+                  fill={
+                    activeType === "pedidos_ya"
+                      ? "var(--color-sale-delivery)"
+                      : activeType === "local"
+                      ? "var(--color-sale-local)"
+                      : "#1e293b"
+                  }
                   radius={[4, 4, 0, 0]}
                   barSize={30}
                 />

@@ -181,7 +181,8 @@ const getPeriodRange = (period, customRange) => {
   return { start: null, end: null };
 };
 
-export function getReports(period, customRange) {
+// MODIFICADO: Acepta typeFilter ("all", "local", "pedidos_ya")
+export function getReports(period, customRange, typeFilter = "all") {
   const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
 
@@ -216,21 +217,34 @@ export function getReports(period, customRange) {
     customRange
   );
 
-  let whereClause = "";
-  const conditions = [];
-  if (selectedStart) conditions.push(`date >= '${selectedStart}'`);
-  if (selectedEnd) conditions.push(`date <= '${selectedEnd}'`);
+  // 1. WHERE base (Solo fechas) -> Para los totales de canales
+  let dateConditions = [];
+  if (selectedStart) dateConditions.push(`date >= '${selectedStart}'`);
+  if (selectedEnd) dateConditions.push(`date <= '${selectedEnd}'`);
 
-  if (conditions.length > 0) {
-    whereClause = "WHERE " + conditions.join(" AND ");
+  let dateWhere = "";
+  if (dateConditions.length > 0) {
+    dateWhere = "WHERE " + dateConditions.join(" AND ");
   }
 
+  // 2. WHERE completo (Fechas + Filtro de Tipo) -> Para Ranking y Tendencias
+  let fullConditions = [...dateConditions];
+  if (typeFilter !== "all") {
+    fullConditions.push(`type = '${typeFilter}'`);
+  }
+
+  let fullWhere = "";
+  if (fullConditions.length > 0) {
+    fullWhere = "WHERE " + fullConditions.join(" AND ");
+  }
+
+  // Usamos dateWhere (sin filtrar tipo) para mostrar siempre los totales correctos en la tarjeta de selección
   const channels = db
     .prepare(
       `
     SELECT type, COUNT(*) as count, SUM(total) as revenue 
     FROM sales 
-    ${whereClause} 
+    ${dateWhere} 
     GROUP BY type
   `
     )
@@ -244,12 +258,13 @@ export function getReports(period, customRange) {
     },
   };
 
+  // Usamos fullWhere (filtrado por tipo) para el Ranking
   const presentations = db
     .prepare(
       `
     SELECT presentation_name as name, SUM(quantity) as units, SUM(total) as revenue 
     FROM sales 
-    ${whereClause} 
+    ${fullWhere} 
     GROUP BY presentation_name 
     ORDER BY units DESC
   `
@@ -259,12 +274,13 @@ export function getReports(period, customRange) {
   const isDaily = ["week", "month"].includes(period) || period === "custom";
   const timeFormat = isDaily ? "%Y-%m-%d" : "%H";
 
+  // Usamos fullWhere (filtrado por tipo) para la Tendencia
   const trend = db
     .prepare(
       `
     SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total
     FROM sales 
-    ${whereClause} 
+    ${fullWhere} 
     GROUP BY label 
     ORDER BY label ASC
   `

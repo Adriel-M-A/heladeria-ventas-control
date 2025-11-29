@@ -16,14 +16,12 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// CAMBIO 1: Actualizar el ID de la app (coincide con package.json)
 const APP_ID = "com.elixir.ventas";
 
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    // CAMBIO 2: Título inicial de la ventana
     title: "Elixir Ventas",
     frame: true,
     autoHideMenuBar: true,
@@ -61,8 +59,10 @@ app.whenReady().then(() => {
   ipcMain.handle("get-sales", (event, type) => getSales(type));
   ipcMain.handle("add-sale", (event, data) => addSale(data));
   ipcMain.handle("get-stats", () => getStats());
-  ipcMain.handle("get-reports", (event, period, customRange) =>
-    getReports(period, customRange)
+
+  // CORRECCIÓN AQUÍ: Se agregó 'typeFilter' para pasarlo a la DB
+  ipcMain.handle("get-reports", (event, period, customRange, typeFilter) =>
+    getReports(period, customRange, typeFilter)
   );
 
   createWindow();
