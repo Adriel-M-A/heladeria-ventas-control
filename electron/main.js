@@ -1,8 +1,10 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import {
   initDB,
+  connectDB, // Importamos connectDB
   getPresentations,
   addPresentation,
   updatePresentation,
@@ -11,14 +13,14 @@ import {
   addSale,
   getStats,
   getReports,
+  backupDB,
+  closeDB,
 } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const APP_ID = "com.elixir.ventas";
-
-// --- FUNCIONES DE VALIDACIÓN (En Español) ---
 
 function validatePresentationData(data) {
   if (!data.name || typeof data.name !== "string" || data.name.trim() === "") {
@@ -35,15 +37,12 @@ function validatePresentationData(data) {
 
 function validateSaleData(data) {
   const allowedTypes = ["local", "pedidos_ya"];
-
   if (!allowedTypes.includes(data.type)) {
     throw new Error("El tipo de venta seleccionado no es válido.");
   }
-
   if (!data.presentation_name || typeof data.presentation_name !== "string") {
     throw new Error("El nombre del producto es obligatorio.");
   }
-
   const priceBase = Number(data.price_base);
   const quantity = Number(data.quantity);
   const total = Number(data.total);
@@ -60,21 +59,13 @@ function validateSaleData(data) {
       "El total no coincide con el precio unitario y la cantidad."
     );
   }
-
   const date = new Date(data.date);
-  if (isNaN(date.getTime())) {
+  if (isNaN(date.getTime()))
     throw new Error("La fecha de la venta es inválida.");
-  }
 
-  return {
-    ...data,
-    price_base: priceBase,
-    quantity: quantity,
-    total: total,
-  };
+  return { ...data, price_base: priceBase, quantity, total };
 }
 
-// --- WRAPPER DE MANEJO DE ERRORES IPC ---
 const handleIpc = (channel, handler) => {
   ipcMain.handle(channel, async (event, ...args) => {
     try {
@@ -95,10 +86,7 @@ function createWindow() {
     title: "Elixir Ventas",
     frame: true,
     autoHideMenuBar: true,
-    // OPTIMIZACIÓN 1: No mostrar hasta que esté listo
     show: false,
-    // OPTIMIZACIÓN 2: Color de fondo igual al de la app (Slate-50 de Tailwind)
-    // Esto evita destellos blancos si hay un micro-lag
     backgroundColor: "#f8fafc",
     icon: path.join(__dirname, "../public/icon.ico"),
     webPreferences: {
@@ -117,13 +105,8 @@ function createWindow() {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  // OPTIMIZACIÓN 3: Evento "ready-to-show"
-  // Electron emite esto cuando el HTML y CSS iniciales ya se pintaron en memoria.
-  // Al mostrar la ventana aquí, el usuario ve la app instantáneamente cargada.
   win.once("ready-to-show", () => {
     win.show();
-    // Opcional: Si quieres que se abra maximizada en pantallas pequeñas
-    // win.maximize();
   });
 }
 
@@ -131,21 +114,17 @@ app.whenReady().then(() => {
   app.setAppUserModelId(APP_ID);
 
   try {
-    initDB();
+    connectDB(); // Usamos connectDB en lugar de initDB
   } catch (e) {
     console.error("CRITICAL: Fallo al iniciar la base de datos", e);
   }
 
-  // --- DEFINICIÓN DE HANDLERS ---
-
+  // --- HANDLERS ---
   handleIpc("get-presentations", () => getPresentations());
-
   handleIpc("get-sales", (event, type, page, pageSize) =>
     getSales(type, page, pageSize)
   );
-
   handleIpc("get-stats", () => getStats());
-
   handleIpc("get-reports", (event, period, customRange, typeFilter) =>
     getReports(period, customRange, typeFilter)
   );
@@ -156,20 +135,73 @@ app.whenReady().then(() => {
   });
 
   handleIpc("update-presentation", (event, data) => {
-    if (!data.id)
-      throw new Error("Falta el ID de la presentación para actualizar.");
+    if (!data.id) throw new Error("Falta el ID de la presentación.");
     const validData = validatePresentationData(data);
     return updatePresentation(validData.id, validData.name, validData.price);
   });
 
   handleIpc("delete-presentation", (event, id) => {
-    if (!id) throw new Error("ID inválido para eliminar.");
+    if (!id) throw new Error("ID inválido.");
     return deletePresentation(id);
   });
 
   handleIpc("add-sale", (event, data) => {
     const validSale = validateSaleData(data);
     return addSale(validSale);
+  });
+
+  handleIpc("backup-db", async () => {
+    const { filePath } = await dialog.showSaveDialog({
+      title: "Guardar Copia de Seguridad",
+      defaultPath: `heladeria-backup-${new Date()
+        .toISOString()
+        .slice(0, 10)}.db`,
+      filters: [{ name: "SQLite Database", extensions: ["db"] }],
+    });
+
+    if (!filePath) return { success: false };
+
+    await backupDB(filePath);
+    return { success: true, path: filePath };
+  });
+
+  // MODIFICADO: Restore sin reiniciar la app completa
+  handleIpc("restore-db", async () => {
+    const { filePaths } = await dialog.showOpenDialog({
+      title: "Seleccionar Archivo de Respaldo",
+      properties: ["openFile"],
+      filters: [{ name: "SQLite Database", extensions: ["db"] }],
+    });
+
+    if (!filePaths || filePaths.length === 0) return { success: false };
+
+    const backupFile = filePaths[0];
+
+    // 1. Cerrar conexión actual
+    closeDB();
+
+    const currentDbPath = app.isPackaged
+      ? path.join(app.getPath("userData"), "heladeria.db")
+      : path.join(__dirname, "../heladeria.db");
+
+    try {
+      // 2. Sobrescribir archivo
+      fs.copyFileSync(backupFile, currentDbPath);
+
+      // 3. Reconectar a la nueva base de datos
+      connectDB();
+
+      // 4. Recargar todas las ventanas para refrescar la interfaz (React se reinicia)
+      BrowserWindow.getAllWindows().forEach((win) => win.reload());
+
+      return { success: true };
+    } catch (error) {
+      // Si falla, intentamos reconectar la vieja DB para que no quede muerta la app
+      connectDB();
+      throw new Error(
+        "No se pudo restaurar la base de datos: " + error.message
+      );
+    }
   });
 
   createWindow();

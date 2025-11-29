@@ -13,4 +13,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getStats: () => ipcRenderer.invoke("get-stats"),
   getReports: (period, customRange, typeFilter) =>
     ipcRenderer.invoke("get-reports", period, customRange, typeFilter),
+
+  // NUEVAS FUNCIONES
+  backupDB: () => ipcRenderer.invoke("backup-db"),
+  restoreDB: () => ipcRenderer.invoke("restore-db"),
 });

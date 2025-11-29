@@ -10,10 +10,22 @@ const dbPath = app.isPackaged
   ? path.join(app.getPath("userData"), "heladeria.db")
   : path.join(__dirname, "../heladeria.db");
 
-const db = new Database(dbPath);
-db.pragma("journal_mode = WAL");
+// Cambiamos 'const' por 'let' para poder reconectar
+let db = null;
 
-export function initDB() {
+// --- GESTIÓN DE CONEXIÓN ---
+
+export function connectDB() {
+  if (db) return; // Ya está conectada
+
+  db = new Database(dbPath);
+  db.pragma("journal_mode = WAL");
+
+  // Aseguramos que las tablas existan al conectar
+  createTables();
+}
+
+function createTables() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS presentations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,12 +47,29 @@ export function initDB() {
   `);
 }
 
+// Mantenemos initDB por compatibilidad si se llamaba desde fuera,
+// pero ahora delega en connectDB
+export function initDB() {
+  connectDB();
+}
+
+export function closeDB() {
+  if (db && db.open) {
+    db.close();
+    db = null;
+  }
+}
+
+// --- CONSULTAS (Usan la variable 'db' que ahora es dinámica) ---
+
 export function getPresentations() {
+  if (!db) connectDB();
   const stmt = db.prepare("SELECT * FROM presentations ORDER BY id DESC");
   return stmt.all();
 }
 
 export function addPresentation(name, price) {
+  if (!db) connectDB();
   const stmt = db.prepare(
     "INSERT INTO presentations (name, price) VALUES (?, ?)"
   );
@@ -49,6 +78,7 @@ export function addPresentation(name, price) {
 }
 
 export function updatePresentation(id, name, price) {
+  if (!db) connectDB();
   const stmt = db.prepare(
     "UPDATE presentations SET name = ?, price = ? WHERE id = ?"
   );
@@ -57,6 +87,7 @@ export function updatePresentation(id, name, price) {
 }
 
 export function deletePresentation(id) {
+  if (!db) connectDB();
   const stmt = db.prepare("DELETE FROM presentations WHERE id = ?");
   stmt.run(id);
   return id;
@@ -66,9 +97,7 @@ const getStartDate = (period) => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  if (period === "today") {
-    return today.toISOString();
-  }
+  if (period === "today") return today.toISOString();
   if (period === "yesterday") {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -87,8 +116,8 @@ const getStartDate = (period) => {
   return null;
 };
 
-// MODIFICADO: Mantiene filtro de "hoy" + Paginación
 export function getSales(type, page = 1, pageSize = 10) {
+  if (!db) connectDB();
   const startOfDay = getStartDate("today");
   const offset = (page - 1) * pageSize;
 
@@ -98,31 +127,25 @@ export function getSales(type, page = 1, pageSize = 10) {
   const conditions = [];
   const params = [];
 
-  // 1. Filtro obligatorio: Solo ventas de hoy en adelante
   conditions.push("date >= ?");
   params.push(startOfDay);
 
-  // 2. Filtro opcional: Tipo de venta (local/pedidos_ya)
   if (type && type !== "all") {
     conditions.push("type = ?");
     params.push(type);
   }
 
-  // Armar el WHERE
   if (conditions.length > 0) {
     const whereSql = " WHERE " + conditions.join(" AND ");
     query += whereSql;
     countQuery += whereSql;
   }
 
-  // Orden y Paginación
   query += " ORDER BY id DESC LIMIT ? OFFSET ?";
 
-  // Ejecutar consulta de datos (spread params + pageSize + offset)
   const stmt = db.prepare(query);
   const rows = stmt.all(...params, pageSize, offset);
 
-  // Ejecutar consulta de conteo (solo params, sin limit/offset)
   const totalResult = db.prepare(countQuery).get(...params);
   const totalRecords = totalResult.total || 0;
 
@@ -136,6 +159,7 @@ export function getSales(type, page = 1, pageSize = 10) {
 }
 
 export function addSale(sale) {
+  if (!db) connectDB();
   const { type, presentation_name, price_base, quantity, total, date } = sale;
   const stmt = db.prepare(`
     INSERT INTO sales (type, presentation_name, price_base, quantity, total, date)
@@ -153,6 +177,7 @@ export function addSale(sale) {
 }
 
 export function getStats() {
+  if (!db) connectDB();
   const startOfDay = getStartDate("today");
 
   const local = db
@@ -177,57 +202,44 @@ export function getStats() {
   };
 }
 
-const getPeriodRange = (period, customRange) => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  if (period === "today") return { start: today.toISOString(), end: null };
-
-  if (period === "yesterday") {
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return { start: yesterday.toISOString(), end: today.toISOString() };
-  }
-
-  if (period === "week") {
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(today.setDate(diff));
-    return { start: monday.toISOString(), end: null };
-  }
-
-  if (period === "month") {
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { start: firstDay.toISOString(), end: null };
-  }
-
-  if (period === "custom" && customRange?.from && customRange?.to) {
-    const fromDate = new Date(customRange.from + "T00:00:00");
-    const toDate = new Date(customRange.to + "T23:59:59.999");
-
-    return {
-      start: fromDate.toISOString(),
-      end: toDate.toISOString(),
-    };
-  }
-
-  return { start: null, end: null };
-};
-
 export function getReports(period, customRange, typeFilter = "all") {
+  if (!db) connectDB();
   const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
+
+  const getPeriodRange = (period, customRange) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (period === "today") return { start: today.toISOString(), end: null };
+    if (period === "yesterday") {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return { start: yesterday.toISOString(), end: today.toISOString() };
+    }
+    if (period === "week") {
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(today.setDate(diff));
+      return { start: monday.toISOString(), end: null };
+    }
+    if (period === "month") {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start: firstDay.toISOString(), end: null };
+    }
+    if (period === "custom" && customRange?.from && customRange?.to) {
+      const fromDate = new Date(customRange.from + "T00:00:00");
+      const toDate = new Date(customRange.to + "T23:59:59.999");
+      return { start: fromDate.toISOString(), end: toDate.toISOString() };
+    }
+    return { start: null, end: null };
+  };
 
   const queryTotal = (start, end) => {
     let sql = "SELECT COUNT(*) as count, SUM(total) as revenue FROM sales";
     const conditions = [];
     if (start) conditions.push(`date >= '${start}'`);
     if (end) conditions.push(`date <= '${end}'`);
-
-    if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ");
-    }
-
+    if (conditions.length > 0) sql += " WHERE " + conditions.join(" AND ");
     const res = db.prepare(sql).get();
     return { count: res.count || 0, revenue: res.revenue || 0 };
   };
@@ -248,37 +260,24 @@ export function getReports(period, customRange, typeFilter = "all") {
     period,
     customRange
   );
-
   let dateConditions = [];
   if (selectedStart) dateConditions.push(`date >= '${selectedStart}'`);
   if (selectedEnd) dateConditions.push(`date <= '${selectedEnd}'`);
-
   let dateWhere = "";
-  if (dateConditions.length > 0) {
+  if (dateConditions.length > 0)
     dateWhere = "WHERE " + dateConditions.join(" AND ");
-  }
 
   let fullConditions = [...dateConditions];
-  if (typeFilter !== "all") {
-    fullConditions.push(`type = '${typeFilter}'`);
-  }
-
+  if (typeFilter !== "all") fullConditions.push(`type = '${typeFilter}'`);
   let fullWhere = "";
-  if (fullConditions.length > 0) {
+  if (fullConditions.length > 0)
     fullWhere = "WHERE " + fullConditions.join(" AND ");
-  }
 
   const channels = db
     .prepare(
-      `
-    SELECT type, COUNT(*) as count, SUM(total) as revenue 
-    FROM sales 
-    ${dateWhere} 
-    GROUP BY type
-  `
+      `SELECT type, COUNT(*) as count, SUM(total) as revenue FROM sales ${dateWhere} GROUP BY type`
     )
     .all();
-
   const channelData = {
     local: channels.find((c) => c.type === "local") || { count: 0, revenue: 0 },
     pedidosYa: channels.find((c) => c.type === "pedidos_ya") || {
@@ -289,38 +288,25 @@ export function getReports(period, customRange, typeFilter = "all") {
 
   const presentations = db
     .prepare(
-      `
-    SELECT presentation_name as name, SUM(quantity) as units, SUM(total) as revenue 
-    FROM sales 
-    ${fullWhere} 
-    GROUP BY presentation_name 
-    ORDER BY units DESC
-  `
+      `SELECT presentation_name as name, SUM(quantity) as units, SUM(total) as revenue FROM sales ${fullWhere} GROUP BY presentation_name ORDER BY units DESC`
     )
     .all();
 
   const isDaily = ["week", "month"].includes(period) || period === "custom";
   const timeFormat = isDaily ? "%Y-%m-%d" : "%H";
-
   const trend = db
     .prepare(
-      `
-    SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total
-    FROM sales 
-    ${fullWhere} 
-    GROUP BY label 
-    ORDER BY label ASC
-  `
+      `SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total FROM sales ${fullWhere} GROUP BY label ORDER BY label ASC`
     )
     .all();
 
   return {
     cards,
-    details: {
-      channels: channelData,
-      presentations,
-      trend,
-      isDaily,
-    },
+    details: { channels: channelData, presentations, trend, isDaily },
   };
+}
+
+export function backupDB(destination) {
+  if (!db) connectDB();
+  return db.backup(destination);
 }

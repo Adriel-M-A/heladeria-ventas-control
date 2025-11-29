@@ -1,7 +1,14 @@
 import { useState } from "react";
-// Importamos el logo como una imagen normal
 import logo from "@/assets/logo.svg";
-import { ShoppingCart, BarChart3, FileText, Menu, X } from "lucide-react"; // Quitamos 'Store'
+// Importamos Settings icon
+import {
+  ShoppingCart,
+  BarChart3,
+  FileText,
+  Menu,
+  X,
+  Settings,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +25,6 @@ export default function Layout({ children, currentView, onNavigate }) {
       {/* HEADER MÓVIL */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 shadow-sm">
         <div className="flex items-center gap-2">
-          {/* LOGO EN MÓVIL */}
           <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
           <span className="font-bold text-lg tracking-tight">Heladería</span>
         </div>
@@ -86,8 +92,6 @@ function SidebarContent({ currentView, onNavigate }) {
   return (
     <>
       <div className="p-6 flex items-center gap-3">
-        {/* LOGO EN SIDEBAR */}
-        {/* Ajusta el w-10 h-10 según necesites */}
         <img
           src={logo}
           alt="Logo Heladería"
@@ -125,8 +129,16 @@ function SidebarContent({ currentView, onNavigate }) {
         />
       </nav>
 
-      <div className="p-4 border-t border-slate-100">
-        <p className="text-xs text-center text-slate-400 font-medium">v1.0.0</p>
+      <div className="px-4 pb-4 border-t border-slate-100 pt-4">
+        <NavItem
+          icon={<Settings />}
+          label="Configuración"
+          active={currentView === "configuracion"}
+          onClick={() => onNavigate("configuracion")}
+        />
+        <p className="text-xs text-center text-slate-400 font-medium mt-4">
+          v1.0.0
+        </p>
       </div>
     </>
   );

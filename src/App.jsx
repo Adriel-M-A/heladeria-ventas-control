@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Toaster } from "sonner";
 import Layout from "@/components/Layout";
-// Importamos las Vistas
 import SalesView from "@/components/SalesView";
 import DataManagement from "@/components/DataManagement";
 import ReportsView from "@/components/ReportsView";
+import SettingsView from "@/components/SettingsView";
 
 function App() {
   const [currentView, setCurrentView] = useState("ventas");
@@ -18,6 +18,8 @@ function App() {
         return <DataManagement />;
       case "reportes":
         return <ReportsView />;
+      case "configuracion":
+        return <SettingsView />;
       default:
         return <SalesView />;
     }
