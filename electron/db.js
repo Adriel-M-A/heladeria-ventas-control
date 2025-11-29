@@ -46,12 +46,19 @@ const migrations = [
         name TEXT NOT NULL,
         presentation_id INTEGER NOT NULL,
         min_quantity INTEGER DEFAULT 1,
-        discount_type TEXT NOT NULL, -- 'fixed_price', 'percentage', 'amount_off'
+        discount_type TEXT NOT NULL,
         discount_value INTEGER NOT NULL,
-        active_days TEXT, -- '0,1,2,3,4,5,6' (0=Domingo)
+        active_days TEXT,
         is_active INTEGER DEFAULT 1,
         FOREIGN KEY(presentation_id) REFERENCES presentations(id) ON DELETE CASCADE
       );
+    `);
+  },
+  // MIGRACIÓN 3: Fechas específicas para promociones
+  (db) => {
+    db.exec(`
+      ALTER TABLE promotions ADD COLUMN start_date TEXT;
+      ALTER TABLE promotions ADD COLUMN end_date TEXT;
     `);
   },
 ];
@@ -137,11 +144,10 @@ export function deletePresentation(id) {
   return id;
 }
 
-// --- NUEVO: CRUD DE PROMOCIONES ---
+// --- CRUD DE PROMOCIONES ACTUALIZADO ---
 
 export function getPromotions() {
   if (!db) connectDB();
-  // Traemos el nombre de la presentación también para mostrarlo fácil en la tabla
   return db
     .prepare(
       `
@@ -156,9 +162,16 @@ export function getPromotions() {
 
 export function addPromotion(promo) {
   if (!db) connectDB();
+  // Incluimos start_date y end_date
   const stmt = db.prepare(`
-    INSERT INTO promotions (name, presentation_id, min_quantity, discount_type, discount_value, active_days, is_active)
-    VALUES (@name, @presentation_id, @min_quantity, @discount_type, @discount_value, @active_days, @is_active)
+    INSERT INTO promotions (
+      name, presentation_id, min_quantity, discount_type, discount_value, 
+      active_days, start_date, end_date, is_active
+    )
+    VALUES (
+      @name, @presentation_id, @min_quantity, @discount_type, @discount_value, 
+      @active_days, @start_date, @end_date, @is_active
+    )
   `);
   const info = stmt.run(promo);
   return { id: info.lastInsertRowid, ...promo };
@@ -174,6 +187,8 @@ export function updatePromotion(promo) {
       discount_type = @discount_type, 
       discount_value = @discount_value, 
       active_days = @active_days,
+      start_date = @start_date,
+      end_date = @end_date,
       is_active = @is_active
     WHERE id = @id
   `);
@@ -187,7 +202,7 @@ export function deletePromotion(id) {
   return id;
 }
 
-// --- VENTAS Y REPORTES (Igual que antes) ---
+// --- VENTAS Y REPORTES ---
 
 const getStartDate = (period) => {
   const now = new Date();
