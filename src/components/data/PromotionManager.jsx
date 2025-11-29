@@ -21,10 +21,18 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2, Calendar, XCircle } from "lucide-react";
 import { formatError, cn } from "@/lib/utils";
+import { usePromotions } from "@/hooks/usePromotions";
+import { useProducts } from "@/hooks/useProducts";
 
 export default function PromotionManager() {
-  const [promotions, setPromotions] = useState([]);
-  const [presentations, setPresentations] = useState([]);
+  const {
+    promotions,
+    fetchPromotions,
+    addPromotion,
+    updatePromotion,
+    deletePromotion,
+  } = usePromotions();
+  const { presentations, fetchPresentations } = useProducts();
 
   const [promoForm, setPromoForm] = useState({
     name: "",
@@ -40,22 +48,9 @@ export default function PromotionManager() {
   const [editingPromoId, setEditingPromoId] = useState(null);
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [prods, promos] = await Promise.all([
-        window.electronAPI.getPresentations(),
-        window.electronAPI.getPromotions(),
-      ]);
-      setPresentations(prods);
-      setPromotions(promos);
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al cargar promociones");
-    }
-  };
+    fetchPromotions();
+    fetchPresentations();
+  }, [fetchPromotions, fetchPresentations]);
 
   const hasDates = !!promoForm.start_date || !!promoForm.end_date;
   const hasDays = promoForm.active_days.length > 0;
@@ -80,7 +75,7 @@ export default function PromotionManager() {
   const clearDays = () =>
     setPromoForm((prev) => ({ ...prev, active_days: [] }));
 
-  const handlePromoSubmit = async () => {
+  const handleSubmit = async () => {
     if (
       !promoForm.name ||
       !promoForm.presentation_id ||
@@ -97,21 +92,16 @@ export default function PromotionManager() {
       end_date: promoForm.end_date || null,
       is_active: Number(promoForm.is_active),
     };
-    try {
-      if (editingPromoId) {
-        await window.electronAPI.updatePromotion({
-          id: editingPromoId,
-          ...payload,
-        });
-        toast.success("Promoción actualizada");
-      } else {
-        await window.electronAPI.addPromotion(payload);
-        toast.success("Promoción creada");
-      }
+
+    let success = false;
+    if (editingPromoId) {
+      success = await updatePromotion({ id: editingPromoId, ...payload });
+    } else {
+      success = await addPromotion(payload);
+    }
+
+    if (success) {
       resetPromoForm();
-      fetchData();
-    } catch (err) {
-      toast.error(formatError(err));
     }
   };
 
@@ -145,15 +135,26 @@ export default function PromotionManager() {
     });
   };
 
-  const deletePromo = async (id) => {
-    if (!confirm("¿Eliminar promoción?")) return;
-    try {
-      await window.electronAPI.deletePromotion(id);
-      toast.success("Promoción eliminada");
-      fetchData();
-    } catch (err) {
-      toast.error(formatError(err));
-    }
+  // --- SOLUCIÓN DEL BUG DE FOCO ---
+  // Reemplazamos window.confirm por un toast interactivo que no bloquea la ventana
+  const handleDelete = (id) => {
+    toast("¿Estás seguro de eliminar esta promoción?", {
+      description: "Esta acción no se puede deshacer.",
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          // Lógica de eliminación dentro del callback del botón "Eliminar"
+          const success = await deletePromotion(id);
+          if (success && editingPromoId === id) {
+            resetPromoForm();
+          }
+        },
+      },
+      cancel: {
+        label: "Cancelar",
+      },
+      duration: 5000, // Damos tiempo para decidir
+    });
   };
 
   const daysMap = ["D", "L", "M", "M", "J", "V", "S"];
@@ -359,7 +360,7 @@ export default function PromotionManager() {
 
             <div className="flex gap-2 pt-4">
               <Button
-                onClick={handlePromoSubmit}
+                onClick={handleSubmit}
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white"
               >
                 {editingPromoId ? "Guardar Cambios" : "Crear Promoción"}
@@ -490,7 +491,7 @@ export default function PromotionManager() {
                             size="sm"
                             variant="outline"
                             className="h-8 w-8 p-0 border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
-                            onClick={() => deletePromo(p.id)}
+                            onClick={() => handleDelete(p.id)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

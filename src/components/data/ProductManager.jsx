@@ -20,65 +20,56 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { formatError } from "@/lib/utils";
+import { useProducts } from "@/hooks/useProducts"; // Importamos el hook
 
 export default function ProductManager() {
-  const [presentations, setPresentations] = useState([]);
+  const {
+    presentations,
+    fetchPresentations,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+  } = useProducts();
+
   const [prodForm, setProdForm] = useState({ name: "", price: "" });
   const [editingProdId, setEditingProdId] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   useEffect(() => {
     fetchPresentations();
-  }, []);
+  }, [fetchPresentations]);
 
-  const fetchPresentations = async () => {
-    try {
-      const data = await window.electronAPI.getPresentations();
-      setPresentations(data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al cargar productos");
-    }
-  };
-
-  const handleProdSubmit = async () => {
+  const handleSubmit = async () => {
     if (!prodForm.name || !prodForm.price)
       return toast.warning("Complete todos los campos");
-    try {
-      if (editingProdId) {
-        await window.electronAPI.updatePresentation({
-          id: editingProdId,
-          name: prodForm.name,
-          price: Number(prodForm.price),
-        });
-        toast.success("Presentación actualizada correctamente");
-      } else {
-        await window.electronAPI.addPresentation({
-          name: prodForm.name,
-          price: Number(prodForm.price),
-        });
-        toast.success("Nueva presentación creada");
-      }
+
+    let success = false;
+    if (editingProdId) {
+      success = await updateProduct({
+        id: editingProdId,
+        name: prodForm.name,
+        price: Number(prodForm.price),
+      });
+    } else {
+      success = await addProduct({
+        name: prodForm.name,
+        price: Number(prodForm.price),
+      });
+    }
+
+    if (success) {
       setProdForm({ name: "", price: "" });
       setEditingProdId(null);
-      fetchPresentations();
-    } catch (err) {
-      toast.error(formatError(err));
     }
   };
 
-  const deleteProd = async (id) => {
-    if (!confirm("¿Seguro que deseas eliminar esta presentación?")) return;
-    try {
-      await window.electronAPI.deletePresentation(id);
-      toast.success("Presentación eliminada");
-      fetchPresentations();
-    } catch (err) {
-      toast.error(formatError(err));
+  const handleDelete = async (id) => {
+    if (confirm("¿Seguro que deseas eliminar esta presentación?")) {
+      await deleteProduct(id);
     }
   };
 
+  // Lógica visual de ordenamiento (se queda aquí porque es solo de UI)
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
@@ -146,7 +137,7 @@ export default function ProductManager() {
             </div>
             <div className="pt-2 flex gap-2">
               <Button
-                onClick={handleProdSubmit}
+                onClick={handleSubmit}
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white"
               >
                 {editingProdId ? (
@@ -235,7 +226,7 @@ export default function ProductManager() {
                           size="sm"
                           variant="outline"
                           className="h-8 w-8 p-0 border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
-                          onClick={() => deleteProd(p.id)}
+                          onClick={() => handleDelete(p.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
