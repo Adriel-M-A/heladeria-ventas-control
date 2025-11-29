@@ -136,7 +136,7 @@ function SidebarContent({ currentView, onNavigate }) {
           active={currentView === "configuracion"}
           onClick={() => onNavigate("configuracion")}
         />
-        <p className="text-xs text-center text-slate-400 font-medium mt-4">
+        <p className="text-xs text-center text-slate-400 font-medium mt-4 border-t border-slate-100 pt-2">
           v1.0.0
         </p>
       </div>
