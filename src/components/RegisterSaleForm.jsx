@@ -26,12 +26,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       try {
         const data = await window.electronAPI.getPresentations();
         setPresentations(data);
-        if (data.length > 0) {
-          setFormData((prev) => ({
-            ...prev,
-            presentationId: data[0].id.toString(),
-          }));
-        }
       } catch (err) {
         console.error("Error cargando presentaciones:", err);
         toast.error("Error al cargar los productos");
@@ -80,14 +74,13 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
 
       if (onSaleSuccess) onSaleSuccess();
 
-      setFormData((prev) => ({ ...prev, quantity: "1" }));
+      setFormData((prev) => ({ ...prev, quantity: "1", presentationId: "" }));
     } catch (err) {
       console.error("Error registrando venta:", err);
       toast.error("Error al registrar la venta");
     }
   };
 
-  // USANDO LAS VARIABLES GLOBALES
   const theme = {
     badge: isPedidosYa
       ? "bg-sale-delivery/10 text-sale-delivery border-sale-delivery/20"
