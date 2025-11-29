@@ -1,4 +1,4 @@
-# Logs
+# Logs del sistema
 logs
 *.log
 npm-debug.log*
@@ -7,16 +7,40 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencias (nunca se suben, pesan mucho)
 node_modules
-dist
-dist-ssr
-*.local
+.pnpm-store
 
-# Editor directories and files
+# Construcción / Build (se generan automáticamente)
+dist
+dist-electron
+release
+
+# --- BASE DE DATOS (SQLite) ---
+# Ignorar el archivo principal de la base de datos
+*.db
+*.sqlite
+*.sqlite3
+heladeria.db
+
+# Ignorar archivos temporales de SQLite (IMPORTANTE por el modo WAL)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Archivos de entorno (claves secretas)
+.env
+.env.local
+.env.*.local
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración de editores (opcional)
+.idea
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj

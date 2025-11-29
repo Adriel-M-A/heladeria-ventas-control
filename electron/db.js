@@ -6,9 +6,10 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// CORRECCIÓN AQUÍ: Usamos "../" para apuntar a la raíz del proyecto
 const dbPath = app.isPackaged
   ? path.join(app.getPath("userData"), "heladeria.db")
-  : path.join(__dirname, "../../heladeria.db");
+  : path.join(__dirname, "../heladeria.db");
 
 const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
@@ -112,10 +113,9 @@ export function getStats() {
   };
 }
 
-// Función auxiliar mejorada para manejar rangos
+// Lógica de fechas corregida para Reportes
 const getPeriodRange = (period) => {
   const now = new Date();
-  // Creamos la fecha de hoy a las 00:00:00
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   if (period === "today") {
@@ -124,7 +124,6 @@ const getPeriodRange = (period) => {
   if (period === "yesterday") {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    // Ayer empieza a las 00:00 de ayer y termina a las 00:00 de hoy
     return { start: yesterday.toISOString(), end: today.toISOString() };
   }
   if (period === "week") {
@@ -137,11 +136,10 @@ const getPeriodRange = (period) => {
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     return { start: firstDay.toISOString(), end: null };
   }
-  return { start: null, end: null }; // total
+  return { start: null, end: null };
 };
 
 export function getReports(period) {
-  // 1. Calcular totales para TODAS las tarjetas
   const cardPeriods = ["today", "yesterday", "week", "month", "total"];
   const cards = {};
 
@@ -164,7 +162,6 @@ export function getReports(period) {
     cards[p] = queryTotal(start, end);
   });
 
-  // 2. Obtener detalles según el periodo SELECCIONADO
   const { start: selectedStart, end: selectedEnd } = getPeriodRange(period);
 
   let whereClause = "";
@@ -176,7 +173,6 @@ export function getReports(period) {
     whereClause = "WHERE " + conditions.join(" AND ");
   }
 
-  // A. Por Canal
   const channels = db
     .prepare(
       `
@@ -196,7 +192,6 @@ export function getReports(period) {
     },
   };
 
-  // B. Por Presentación
   const presentations = db
     .prepare(
       `
