@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-// Badge ya no se usa, lo quitamos de los imports
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -110,7 +109,12 @@ export default function ReportsView() {
       </div>
 
       {/* FILTROS / TARJETAS SUPERIORES */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* CORRECCIÓN DE RESPONSIVIDAD: 
+          - Móvil: 2 columnas
+          - Tablet/Laptop (md): 3 columnas (evita el aplastamiento)
+          - Pantalla Grande (xl): 5 columnas
+      */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {cardConfig.map((card) => {
           const stats = data?.cards[card.id] || { count: 0, revenue: 0 };
           const isSelected = period === card.id;
@@ -250,10 +254,10 @@ export default function ReportsView() {
                       className="hover:bg-slate-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 font-medium text-slate-700 flex items-center gap-2">
-                        {/* 1. NOMBRE PRIMERO */}
+                        {/* NOMBRE */}
                         {item.name}
 
-                        {/* 2. ESTRELLA DESPUÉS (SOLO SI ES TOP 1) */}
+                        {/* ESTRELLA (SOLO SI ES TOP 1) */}
                         {index === 0 && (
                           <Star className="w-4 h-4 text-amber-500 fill-current animate-in zoom-in spin-in-12 duration-500" />
                         )}
