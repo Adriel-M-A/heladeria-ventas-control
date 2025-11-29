@@ -4,7 +4,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import {
   initDB,
-  connectDB, // Importamos connectDB
+  connectDB,
   getPresentations,
   addPresentation,
   updatePresentation,
@@ -15,6 +15,11 @@ import {
   getReports,
   backupDB,
   closeDB,
+  // IMPORTAR NUEVAS FUNCIONES
+  getPromotions,
+  addPromotion,
+  updatePromotion,
+  deletePromotion,
 } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +27,7 @@ const __dirname = path.dirname(__filename);
 
 const APP_ID = "com.elixir.ventas";
 
+// ... (Las funciones validatePresentationData, validateSaleData y handleIpc se mantienen IGUAL)
 function validatePresentationData(data) {
   if (!data.name || typeof data.name !== "string" || data.name.trim() === "") {
     throw new Error("El nombre de la presentación es obligatorio.");
@@ -36,6 +42,7 @@ function validatePresentationData(data) {
 }
 
 function validateSaleData(data) {
+  // ... (tu validación actual de ventas)
   const allowedTypes = ["local", "pedidos_ya"];
   if (!allowedTypes.includes(data.type)) {
     throw new Error("El tipo de venta seleccionado no es válido.");
@@ -54,11 +61,14 @@ function validateSaleData(data) {
   if (isNaN(total) || total < 0)
     throw new Error("El total no puede ser negativo.");
 
-  if (Math.abs(priceBase * quantity - total) > 1) {
-    throw new Error(
-      "El total no coincide con el precio unitario y la cantidad."
-    );
+  // Ojo: Si hay promo, la validación estricta de (precio * cantidad == total) podría fallar.
+  // La relajamos o la ajustamos si el total es menor (descuento)
+  if (total > priceBase * quantity + 1) {
+    // Solo error si el total es MAYOR a lo normal (cobrar de más sin razón)
+    // Si es menor, asumimos que es una promo
+    throw new Error("El total parece incorrecto.");
   }
+
   const date = new Date(data.date);
   if (isNaN(date.getTime()))
     throw new Error("La fecha de la venta es inválida.");
@@ -114,7 +124,7 @@ app.whenReady().then(() => {
   app.setAppUserModelId(APP_ID);
 
   try {
-    connectDB(); // Usamos connectDB en lugar de initDB
+    connectDB();
   } catch (e) {
     console.error("CRITICAL: Fallo al iniciar la base de datos", e);
   }
@@ -158,51 +168,46 @@ app.whenReady().then(() => {
         .slice(0, 10)}.db`,
       filters: [{ name: "SQLite Database", extensions: ["db"] }],
     });
-
     if (!filePath) return { success: false };
-
     await backupDB(filePath);
     return { success: true, path: filePath };
   });
 
-  // MODIFICADO: Restore sin reiniciar la app completa
   handleIpc("restore-db", async () => {
     const { filePaths } = await dialog.showOpenDialog({
       title: "Seleccionar Archivo de Respaldo",
       properties: ["openFile"],
       filters: [{ name: "SQLite Database", extensions: ["db"] }],
     });
-
     if (!filePaths || filePaths.length === 0) return { success: false };
-
     const backupFile = filePaths[0];
-
-    // 1. Cerrar conexión actual
     closeDB();
-
     const currentDbPath = app.isPackaged
       ? path.join(app.getPath("userData"), "heladeria.db")
       : path.join(__dirname, "../heladeria.db");
-
     try {
-      // 2. Sobrescribir archivo
       fs.copyFileSync(backupFile, currentDbPath);
-
-      // 3. Reconectar a la nueva base de datos
       connectDB();
-
-      // 4. Recargar todas las ventanas para refrescar la interfaz (React se reinicia)
       BrowserWindow.getAllWindows().forEach((win) => win.reload());
-
       return { success: true };
     } catch (error) {
-      // Si falla, intentamos reconectar la vieja DB para que no quede muerta la app
       connectDB();
       throw new Error(
         "No se pudo restaurar la base de datos: " + error.message
       );
     }
   });
+
+  // --- HANDLERS PROMOCIONES ---
+  handleIpc("get-promotions", () => getPromotions());
+  handleIpc("add-promotion", (event, data) => {
+    // Validaciones simples
+    if (!data.name) throw new Error("Nombre requerido");
+    if (!data.presentation_id) throw new Error("Producto requerido");
+    return addPromotion(data);
+  });
+  handleIpc("update-promotion", (event, data) => updatePromotion(data));
+  handleIpc("delete-promotion", (event, id) => deletePromotion(id));
 
   createWindow();
 });

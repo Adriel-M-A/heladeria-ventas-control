@@ -14,7 +14,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getReports: (period, customRange, typeFilter) =>
     ipcRenderer.invoke("get-reports", period, customRange, typeFilter),
 
-  // NUEVAS FUNCIONES
   backupDB: () => ipcRenderer.invoke("backup-db"),
   restoreDB: () => ipcRenderer.invoke("restore-db"),
+
+  // --- PROMOCIONES ---
+  getPromotions: () => ipcRenderer.invoke("get-promotions"),
+  addPromotion: (data) => ipcRenderer.invoke("add-promotion", data),
+  updatePromotion: (data) => ipcRenderer.invoke("update-promotion", data),
+  deletePromotion: (id) => ipcRenderer.invoke("delete-promotion", id),
 });

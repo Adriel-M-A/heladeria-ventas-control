@@ -14,9 +14,8 @@ let db = null;
 
 // --- SISTEMA DE MIGRACIONES ---
 
-// Aquí definimos la historia evolutiva de tu base de datos
 const migrations = [
-  // MIGRACIÓN 1: Estructura base + Tabla de Configuración
+  // MIGRACIÓN 1: Estructura base
   (db) => {
     db.exec(`
       CREATE TABLE IF NOT EXISTS presentations (
@@ -24,7 +23,6 @@ const migrations = [
         name TEXT NOT NULL,
         price INTEGER NOT NULL
       );
-
       CREATE TABLE IF NOT EXISTS sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,
@@ -34,64 +32,62 @@ const migrations = [
         total INTEGER NOT NULL,
         date TEXT NOT NULL
       );
-
-      -- Nueva tabla para Settings (Configuración)
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
     `);
   },
-  // MIGRACIÓN 2 (Futura): Aquí agregarás cambios sin romper lo anterior
-  // Por ejemplo: (db) => db.exec("ALTER TABLE sales ADD COLUMN metodo_pago TEXT")
+  // MIGRACIÓN 2: Tabla de Promociones
+  (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS promotions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        presentation_id INTEGER NOT NULL,
+        min_quantity INTEGER DEFAULT 1,
+        discount_type TEXT NOT NULL, -- 'fixed_price', 'percentage', 'amount_off'
+        discount_value INTEGER NOT NULL,
+        active_days TEXT, -- '0,1,2,3,4,5,6' (0=Domingo)
+        is_active INTEGER DEFAULT 1,
+        FOREIGN KEY(presentation_id) REFERENCES presentations(id) ON DELETE CASCADE
+      );
+    `);
+  },
 ];
 
 function runMigrations() {
   if (!db) return;
-
-  // 1. Obtener versión actual de la base de datos (0 si es nueva)
   const currentVersion = db.pragma("user_version", { simple: true });
   console.log(`[DB] Versión actual: ${currentVersion}`);
 
   let newVersion = currentVersion;
 
-  // 2. Ejecutar solo las migraciones que faltan
   for (let i = currentVersion; i < migrations.length; i++) {
     const nextVersion = i + 1;
     console.log(`[DB] Aplicando migración v${nextVersion}...`);
-
-    // Usamos una transacción para que si falla, no se aplique a medias
     const runMigration = db.transaction(() => {
-      migrations[i](db); // Ejecutar la función de migración
-      db.pragma(`user_version = ${nextVersion}`); // Actualizar versión
+      migrations[i](db);
+      db.pragma(`user_version = ${nextVersion}`);
     });
-
     try {
       runMigration();
       newVersion = nextVersion;
     } catch (err) {
       console.error(`[DB] CRITICAL: Error en migración v${nextVersion}:`, err);
-      throw err; // Esto detendrá la carga de la app si la DB falla, es lo seguro
+      throw err;
     }
   }
-
-  if (newVersion !== currentVersion) {
-    console.log(`[DB] Base de datos actualizada a la versión ${newVersion}`);
-  } else {
-    console.log(`[DB] La base de datos está actualizada.`);
-  }
+  console.log(`[DB] Base de datos en versión ${newVersion}`);
 }
 
 // --- GESTIÓN DE CONEXIÓN ---
 
 export function connectDB() {
-  if (db) return; // Ya conectada
-
+  if (db) return;
   try {
     db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
-
-    // Ejecutamos las migraciones inmediatamente al conectar
     runMigrations();
   } catch (error) {
     console.error("Error al conectar con la base de datos:", error);
@@ -99,7 +95,6 @@ export function connectDB() {
   }
 }
 
-// Alias para mantener compatibilidad si algo llama a initDB
 export function initDB() {
   connectDB();
 }
@@ -111,43 +106,92 @@ export function closeDB() {
   }
 }
 
-// --- CONSULTAS (CRUD) ---
+// --- CONSULTAS ---
 
 export function getPresentations() {
   if (!db) connectDB();
-  const stmt = db.prepare("SELECT * FROM presentations ORDER BY id DESC");
-  return stmt.all();
+  return db.prepare("SELECT * FROM presentations ORDER BY id DESC").all();
 }
 
 export function addPresentation(name, price) {
   if (!db) connectDB();
-  const stmt = db.prepare(
-    "INSERT INTO presentations (name, price) VALUES (?, ?)"
-  );
-  const info = stmt.run(name, price);
+  const info = db
+    .prepare("INSERT INTO presentations (name, price) VALUES (?, ?)")
+    .run(name, price);
   return { id: info.lastInsertRowid, name, price };
 }
 
 export function updatePresentation(id, name, price) {
   if (!db) connectDB();
-  const stmt = db.prepare(
-    "UPDATE presentations SET name = ?, price = ? WHERE id = ?"
+  db.prepare("UPDATE presentations SET name = ?, price = ? WHERE id = ?").run(
+    name,
+    price,
+    id
   );
-  stmt.run(name, price, id);
   return { id, name, price };
 }
 
 export function deletePresentation(id) {
   if (!db) connectDB();
-  const stmt = db.prepare("DELETE FROM presentations WHERE id = ?");
-  stmt.run(id);
+  db.prepare("DELETE FROM presentations WHERE id = ?").run(id);
   return id;
 }
+
+// --- NUEVO: CRUD DE PROMOCIONES ---
+
+export function getPromotions() {
+  if (!db) connectDB();
+  // Traemos el nombre de la presentación también para mostrarlo fácil en la tabla
+  return db
+    .prepare(
+      `
+    SELECT p.*, pr.name as presentation_name 
+    FROM promotions p 
+    LEFT JOIN presentations pr ON p.presentation_id = pr.id 
+    ORDER BY p.id DESC
+  `
+    )
+    .all();
+}
+
+export function addPromotion(promo) {
+  if (!db) connectDB();
+  const stmt = db.prepare(`
+    INSERT INTO promotions (name, presentation_id, min_quantity, discount_type, discount_value, active_days, is_active)
+    VALUES (@name, @presentation_id, @min_quantity, @discount_type, @discount_value, @active_days, @is_active)
+  `);
+  const info = stmt.run(promo);
+  return { id: info.lastInsertRowid, ...promo };
+}
+
+export function updatePromotion(promo) {
+  if (!db) connectDB();
+  const stmt = db.prepare(`
+    UPDATE promotions SET 
+      name = @name, 
+      presentation_id = @presentation_id, 
+      min_quantity = @min_quantity, 
+      discount_type = @discount_type, 
+      discount_value = @discount_value, 
+      active_days = @active_days,
+      is_active = @is_active
+    WHERE id = @id
+  `);
+  stmt.run(promo);
+  return promo;
+}
+
+export function deletePromotion(id) {
+  if (!db) connectDB();
+  db.prepare("DELETE FROM promotions WHERE id = ?").run(id);
+  return id;
+}
+
+// --- VENTAS Y REPORTES (Igual que antes) ---
 
 const getStartDate = (period) => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
   if (period === "today") return today.toISOString();
   if (period === "yesterday") {
     const yesterday = new Date(today);
@@ -171,81 +215,63 @@ export function getSales(type, page = 1, pageSize = 10) {
   if (!db) connectDB();
   const startOfDay = getStartDate("today");
   const offset = (page - 1) * pageSize;
-
   let query = "SELECT * FROM sales";
   let countQuery = "SELECT COUNT(*) as total FROM sales";
-
   const conditions = [];
   const params = [];
 
-  // Filtro 1: Solo ventas de hoy
   conditions.push("date >= ?");
   params.push(startOfDay);
 
-  // Filtro 2: Tipo de venta
   if (type && type !== "all") {
     conditions.push("type = ?");
     params.push(type);
   }
 
   if (conditions.length > 0) {
-    const whereSql = " WHERE " + conditions.join(" AND ");
-    query += whereSql;
-    countQuery += whereSql;
+    const where = " WHERE " + conditions.join(" AND ");
+    query += where;
+    countQuery += where;
   }
 
   query += " ORDER BY id DESC LIMIT ? OFFSET ?";
 
   const stmt = db.prepare(query);
   const rows = stmt.all(...params, pageSize, offset);
-
-  // Para el count quitamos los ultimos 2 params (limit y offset)
   const totalResult = db.prepare(countQuery).get(...params);
-  const totalRecords = totalResult.total || 0;
 
   return {
     data: rows,
-    total: totalRecords,
+    total: totalResult.total || 0,
     page,
     pageSize,
-    totalPages: Math.ceil(totalRecords / pageSize),
+    totalPages: Math.ceil((totalResult.total || 0) / pageSize),
   };
 }
 
 export function addSale(sale) {
   if (!db) connectDB();
-  const { type, presentation_name, price_base, quantity, total, date } = sale;
   const stmt = db.prepare(`
     INSERT INTO sales (type, presentation_name, price_base, quantity, total, date)
-    VALUES (?, ?, ?, ?, ?, ?)
+    VALUES (@type, @presentation_name, @price_base, @quantity, @total, @date)
   `);
-  const info = stmt.run(
-    type,
-    presentation_name,
-    price_base,
-    quantity,
-    total,
-    date
-  );
+  const info = stmt.run(sale);
   return { id: info.lastInsertRowid, ...sale };
 }
 
 export function getStats() {
   if (!db) connectDB();
   const startOfDay = getStartDate("today");
-
   const local = db
     .prepare(
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'local' AND date >= ?"
     )
     .get(startOfDay);
-
   const pedidosYa = db
     .prepare(
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'pedidos_ya' AND date >= ?"
     )
     .get(startOfDay);
-
   return {
     local: { count: local.count || 0, total: local.total || 0 },
     pedidosYa: { count: pedidosYa.count || 0, total: pedidosYa.total || 0 },
@@ -333,10 +359,7 @@ export function getReports(period, customRange, typeFilter = "all") {
     )
     .all();
   const channelData = {
-    local: channels.find((c) => c.type === "local") || {
-      count: 0,
-      revenue: 0,
-    },
+    local: channels.find((c) => c.type === "local") || { count: 0, revenue: 0 },
     pedidosYa: channels.find((c) => c.type === "pedidos_ya") || {
       count: 0,
       revenue: 0,
