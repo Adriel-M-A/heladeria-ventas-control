@@ -15,7 +15,6 @@ function validateSale(data) {
   if (isNaN(quantity) || quantity <= 0) throw new Error("Cantidad inválida.");
   if (isNaN(total) || total < 0) throw new Error("Total inválido.");
 
-  // Validación laxa para permitir promos (Total puede ser menor que precio*cant, pero no exageradamente mayor)
   if (total > priceBase * quantity + 10) {
     throw new Error("El total parece incorrecto (demasiado alto).");
   }
@@ -31,5 +30,11 @@ export function setupSalesHandlers() {
   handleIpc("add-sale", (event, data) => {
     const valid = validateSale(data);
     return repo.addSale(valid);
+  });
+
+  // NUEVO HANDLER
+  handleIpc("delete-sale", (event, id) => {
+    if (!id) throw new Error("ID de venta requerido.");
+    return repo.deleteSale(id);
   });
 }

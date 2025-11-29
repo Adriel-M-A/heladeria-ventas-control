@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight, Trash2, AlertCircle } from "lucide-react"; // Iconos nuevos
+import { cn, formatError } from "@/lib/utils";
+import { toast } from "sonner"; // Para notificar
 
 export default function SalesTable({ type = "local" }) {
   const [sales, setSales] = useState([]);
@@ -24,19 +25,44 @@ export default function SalesTable({ type = "local" }) {
     setPage(1);
   }, [type]);
 
-  useEffect(() => {
+  const fetchSales = async () => {
     if (!window.electronAPI) return;
-    const fetchSales = async () => {
-      try {
-        const result = await window.electronAPI.getSales(type, page, pageSize);
-        setSales(result.data);
-        setTotalPages(result.totalPages);
-      } catch (error) {
-        console.error("Error al cargar ventas:", error);
-      }
-    };
+    try {
+      const result = await window.electronAPI.getSales(type, page, pageSize);
+      setSales(result.data);
+      setTotalPages(result.totalPages);
+    } catch (error) {
+      console.error("Error al cargar ventas:", error);
+      toast.error("Error al actualizar la tabla");
+    }
+  };
+
+  // Se ejecuta al cambiar tipo o página
+  useEffect(() => {
     fetchSales();
   }, [type, page]);
+
+  // NUEVA LÓGICA DE CANCELACIÓN
+  const handleCancelSale = async (id) => {
+    // Usamos confirm nativo por rapidez, aunque podríamos usar un Dialog de UI
+    if (
+      !window.confirm(
+        "¿Estás seguro de que deseas cancelar esta venta? Esta acción descontará el dinero de la caja."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await window.electronAPI.deleteSale(id);
+      toast.success("Venta cancelada correctamente");
+      // Recargamos la tabla para ver los cambios
+      fetchSales();
+    } catch (err) {
+      console.error(err);
+      toast.error(formatError(err));
+    }
+  };
 
   const formatDate = (isoString) => {
     try {
@@ -90,7 +116,7 @@ export default function SalesTable({ type = "local" }) {
               className={cn("border-b transition-colors", theme.tableHeaderRow)}
             >
               <TableHead
-                className={cn("w-[200px] font-semibold", theme.headerText)}
+                className={cn("w-[180px] font-semibold", theme.headerText)}
               >
                 Fecha Venta
               </TableHead>
@@ -107,6 +133,14 @@ export default function SalesTable({ type = "local" }) {
                 className={cn("text-right font-semibold", theme.headerText)}
               >
                 Precio Total
+              </TableHead>
+              <TableHead
+                className={cn(
+                  "text-right font-semibold w-[80px]",
+                  theme.headerText
+                )}
+              >
+                Acción
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -137,15 +171,29 @@ export default function SalesTable({ type = "local" }) {
                   >
                     $ {sale.total.toLocaleString("es-AR")}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                      title="Cancelar Venta"
+                      onClick={() => handleCancelSale(sale.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="h-24 text-center text-slate-500"
                 >
-                  No hay ventas registradas.
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <AlertCircle className="w-6 h-6 text-slate-300" />
+                    <p>No hay ventas registradas hoy.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

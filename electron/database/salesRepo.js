@@ -47,3 +47,10 @@ export function addSale(sale) {
   const info = stmt.run(sale);
   return { id: info.lastInsertRowid, ...sale };
 }
+
+// NUEVA FUNCIÓN
+export function deleteSale(id) {
+  const db = getDB();
+  const info = db.prepare("DELETE FROM sales WHERE id = ?").run(id);
+  return info.changes > 0;
+}
