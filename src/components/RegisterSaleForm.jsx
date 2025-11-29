@@ -53,7 +53,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
   const handleRegister = async () => {
     if (!selectedPresentation || !window.electronAPI) return;
 
-    // Validación extra
     if (total <= 0) {
       toast.error("El precio total debe ser mayor a 0");
       return;
@@ -71,7 +70,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
     try {
       await window.electronAPI.addSale(saleData);
 
-      // Notificación de éxito
       toast.success(
         `Venta de ${
           formData.type === "local" ? "Local" : "PedidosYa"
@@ -83,7 +81,6 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
 
       if (onSaleSuccess) onSaleSuccess();
 
-      // Reiniciar cantidad
       setFormData((prev) => ({ ...prev, quantity: "1" }));
     } catch (err) {
       console.error("Error registrando venta:", err);
@@ -99,6 +96,10 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
       ? "bg-rose-600 hover:bg-rose-700"
       : "bg-blue-600 hover:bg-blue-700",
   };
+
+  // Estilos personalizados para los items del select
+  const selectItemStyles =
+    "cursor-pointer focus:bg-slate-100 pl-3 pr-8 [&>span.absolute]:left-auto [&>span.absolute]:right-2";
 
   return (
     <Card className="bg-white border-slate-200 shadow-sm">
@@ -118,17 +119,25 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
                 setFormData({ ...formData, presentationId: val })
               }
             >
-              <SelectTrigger className="bg-white border-slate-200">
+              <SelectTrigger className="bg-white border-slate-200 focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Seleccionar..." />
               </SelectTrigger>
               <SelectContent>
                 {presentations.length === 0 ? (
-                  <SelectItem value="loading" disabled>
+                  <SelectItem
+                    value="loading"
+                    disabled
+                    className="cursor-default"
+                  >
                     Cargando...
                   </SelectItem>
                 ) : (
                   presentations.map((p) => (
-                    <SelectItem key={p.id} value={p.id.toString()}>
+                    <SelectItem
+                      key={p.id}
+                      value={p.id.toString()}
+                      className={selectItemStyles}
+                    >
                       {p.name} - $ {p.price.toLocaleString("es-AR")}
                     </SelectItem>
                   ))
@@ -146,12 +155,16 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
                 setFormData({ ...formData, quantity: val })
               }
             >
-              <SelectTrigger className="bg-white border-slate-200">
+              <SelectTrigger className="bg-white border-slate-200 focus:ring-0 focus:ring-offset-0">
                 <SelectValue placeholder="Seleccionar..." />
               </SelectTrigger>
               <SelectContent>
                 {[1, 2, 3, 4, 5, 10, 15, 20].map((num) => (
-                  <SelectItem key={num} value={num.toString()}>
+                  <SelectItem
+                    key={num}
+                    value={num.toString()}
+                    className={selectItemStyles}
+                  >
                     {num} {num === 1 ? "unidad" : "unidades"}
                   </SelectItem>
                 ))}
@@ -166,23 +179,17 @@ export default function RegisterSaleForm({ onSaleSuccess }) {
               value={formData.type}
               onValueChange={(val) => setFormData({ ...formData, type: val })}
             >
-              <SelectTrigger className="bg-white border-slate-200">
+              <SelectTrigger className="bg-white border-slate-200 focus:ring-0 focus:ring-offset-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem
-                  value="local"
-                  className="pl-3 [&>span.absolute]:hidden cursor-pointer"
-                >
+                <SelectItem value="local" className={selectItemStyles}>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-500" />
                     <span>Local</span>
                   </div>
                 </SelectItem>
-                <SelectItem
-                  value="pedidos_ya"
-                  className="pl-3 [&>span.absolute]:hidden cursor-pointer"
-                >
+                <SelectItem value="pedidos_ya" className={selectItemStyles}>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-rose-500" />
                     <span>PedidosYa</span>
