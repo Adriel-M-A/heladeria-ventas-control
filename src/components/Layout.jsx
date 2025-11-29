@@ -1,19 +1,13 @@
 import { useState } from "react";
-import {
-  Store,
-  ShoppingCart,
-  BarChart3,
-  FileText,
-  Menu,
-  X,
-} from "lucide-react";
+// Importamos el logo como una imagen normal
+import logo from "@/assets/logo.svg";
+import { ShoppingCart, BarChart3, FileText, Menu, X } from "lucide-react"; // Quitamos 'Store'
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function Layout({ children, currentView, onNavigate }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Función para navegar y cerrar el menú móvil automáticamente
   const handleNavigate = (view) => {
     onNavigate(view);
     setIsMobileMenuOpen(false);
@@ -21,12 +15,11 @@ export default function Layout({ children, currentView, onNavigate }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
-      {/* --- HEADER MÓVIL (Solo visible en pantallas pequeñas) --- */}
+      {/* HEADER MÓVIL */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40 flex items-center justify-between px-4 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-1.5 rounded-lg">
-            <Store className="w-5 h-5 text-white" />
-          </div>
+          {/* LOGO EN MÓVIL */}
+          <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
           <span className="font-bold text-lg tracking-tight">Heladería</span>
         </div>
         <Button
@@ -43,23 +36,19 @@ export default function Layout({ children, currentView, onNavigate }) {
         </Button>
       </header>
 
-      {/* --- SIDEBAR DESKTOP (Fijo a la izquierda, oculto en móvil) --- */}
+      {/* SIDEBAR DESKTOP */}
       <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col fixed h-full z-10">
         <SidebarContent currentView={currentView} onNavigate={onNavigate} />
       </aside>
 
-      {/* --- SIDEBAR MÓVIL (Overlay + Panel) --- */}
+      {/* SIDEBAR MÓVIL */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          {/* Fondo oscuro (Overlay) */}
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-
-          {/* Panel deslizante */}
           <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
-            {/* Botón cerrar dentro del menú (opcional, por usabilidad) */}
             <div className="absolute top-4 right-4 md:hidden">
               <Button
                 variant="ghost"
@@ -79,31 +68,35 @@ export default function Layout({ children, currentView, onNavigate }) {
         </div>
       )}
 
-      {/* --- CONTENIDO PRINCIPAL --- */}
+      {/* CONTENIDO PRINCIPAL */}
       <main
         className={cn(
           "flex-1 relative min-h-screen transition-all duration-300",
-          "md:ml-64", // Margen izquierdo en Desktop
-          "pt-16 md:pt-0" // Padding superior en Móvil (por el Header)
+          "md:ml-64",
+          "pt-16 md:pt-0"
         )}
       >
-        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">{children}</div>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-2">{children}</div>
       </main>
     </div>
   );
 }
 
-// Componente extraído para reutilizar el contenido del menú
 function SidebarContent({ currentView, onNavigate }) {
   return (
     <>
       <div className="p-6 flex items-center gap-3">
-        <div className="bg-blue-600 p-2 rounded-lg shadow-sm shadow-blue-200">
-          <Store className="w-6 h-6 text-white" />
-        </div>
+        {/* LOGO EN SIDEBAR */}
+        {/* Ajusta el w-10 h-10 según necesites */}
+        <img
+          src={logo}
+          alt="Logo Heladería"
+          className="w-14 h-14 object-contain"
+        />
+
         <div>
           <h1 className="font-bold text-lg leading-tight tracking-tight">
-            Heladería
+            Elixir Helados
           </h1>
           <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
             Control de ventas

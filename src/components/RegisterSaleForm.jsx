@@ -102,11 +102,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
 
   return (
     <Card className="bg-white border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-100 pb-4">
-        <h3 className="text-lg font-bold text-slate-900">Nueva Venta</h3>
-        <p className="text-sm text-slate-500">Complete los datos de la venta</p>
-      </CardHeader>
-
       <CardContent className="pt-6 grid gap-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
