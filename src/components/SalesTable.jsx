@@ -47,7 +47,7 @@ export default function SalesTable({ type = "local" }) {
       description:
         "El monto se descontará de la caja y afectará las estadísticas.",
       action: {
-        label: "Confirmar Cancelación",
+        label: "Confirmar",
         onClick: async () => {
           try {
             await window.electronAPI.deleteSale(id);
