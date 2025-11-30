@@ -93,7 +93,7 @@ export default function ReportsView() {
   const currentTotal = data?.cards[period] || { count: 0, revenue: 0 };
 
   return (
-    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+    <div className="space-y-6 duration-300">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -105,7 +105,7 @@ export default function ReportsView() {
         </div>
 
         {period === "custom" && (
-          <div className="flex items-end gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm animate-in slide-in-from-right-5 fade-in">
+          <div className="flex items-end gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
             <div>
               <Label className="text-xs text-slate-500 ml-1">Desde</Label>
               <Input
@@ -164,7 +164,7 @@ export default function ReportsView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start h-full">
-        {/* COLUMNA 1: VENTAS POR TIPO (INTERACTIVA) */}
+        {/* COLUMNA 1: VENTAS POR TIPO */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
             <PieChart className="w-4 h-4 text-slate-500" />
@@ -177,7 +177,6 @@ export default function ReportsView() {
           </div>
 
           <div className="p-6 space-y-4 flex-1">
-            {/* Opción LOCAL */}
             <div
               onClick={() => setActiveType("local")}
               className={cn(
@@ -226,7 +225,6 @@ export default function ReportsView() {
               </div>
             </div>
 
-            {/* Opción PEDIDOSYA */}
             <div
               onClick={() => setActiveType("pedidos_ya")}
               className={cn(
@@ -283,7 +281,6 @@ export default function ReportsView() {
               </div>
             </div>
 
-            {/* Opción TOTAL GENERAL */}
             <div
               onClick={() => setActiveType("all")}
               className={cn(
@@ -331,7 +328,7 @@ export default function ReportsView() {
           </div>
         </Card>
 
-        {/* COLUMNA 2: ANÁLISIS POR PRESENTACIÓN */}
+        {/* COLUMNA 2: RANKING */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
             <TrendingUp className="w-4 h-4 text-slate-500" />
@@ -397,7 +394,7 @@ export default function ReportsView() {
           </div>
         </Card>
 
-        {/* COLUMNA 3: TENDENCIA DE VENTAS */}
+        {/* COLUMNA 3: TENDENCIA (CORREGIDO) */}
         <Card className="border-slate-200 shadow-sm bg-white h-full flex flex-col p-0 overflow-hidden">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
             <TrendingUp className="w-4 h-4 text-blue-600" />
@@ -409,7 +406,7 @@ export default function ReportsView() {
             </div>
           </div>
 
-          <div className="py-4 pr-4 flex-1 min-h-[300px]">
+          <div className="relative w-full h-[300px] p-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data?.details?.trend || []}>
                 <CartesianGrid
