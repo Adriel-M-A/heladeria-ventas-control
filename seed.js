@@ -6,18 +6,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, "heladeria.db");
 
+console.log(`🌱 Iniciando siembra de datos en: ${dbPath}`);
+
 const db = new Database(dbPath);
 
-console.log("🌱 Iniciando carga de datos de prueba...");
+// --- 1. REINICIO DE ESTRUCTURA ---
+console.log("🧹 Reiniciando estructura de la base de datos...");
 
-// --- PASO 0: CREAR TABLAS SI NO EXISTEN (Esto soluciona tu error) ---
+db.exec("DROP TABLE IF EXISTS sales;");
+db.exec("DROP TABLE IF EXISTS promotions;");
+db.exec("DROP TABLE IF EXISTS presentations;");
+db.exec("DROP TABLE IF EXISTS settings;");
+
+// Creamos las tablas con el ESQUEMA FINAL COMPLETO
 db.exec(`
-  CREATE TABLE IF NOT EXISTS presentations (
+  CREATE TABLE presentations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    price INTEGER NOT NULL
+    price_local INTEGER NOT NULL,
+    price_delivery INTEGER NOT NULL
   );
-  CREATE TABLE IF NOT EXISTS sales (
+
+  CREATE TABLE sales (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT NOT NULL,
     presentation_name TEXT NOT NULL,
@@ -26,74 +36,120 @@ db.exec(`
     total INTEGER NOT NULL,
     date TEXT NOT NULL
   );
+
+  CREATE TABLE promotions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    presentation_id INTEGER NOT NULL,
+    min_quantity INTEGER DEFAULT 1,
+    discount_type TEXT NOT NULL, 
+    discount_value INTEGER NOT NULL,
+    active_days TEXT,
+    start_date TEXT,
+    end_date TEXT,
+    channel TEXT DEFAULT 'all',
+    is_active INTEGER DEFAULT 1,
+    FOREIGN KEY(presentation_id) REFERENCES presentations(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `);
-console.log("✅ Estructura de tablas verificada.");
 
-// 1. LIMPIAR DATOS EXISTENTES
-db.exec("DELETE FROM sales");
-db.exec("DELETE FROM presentations");
-db.exec("DELETE FROM sqlite_sequence"); // Reinicia los IDs a 1
+// --- IMPORTANTE: MARCAR VERSIÓN DE BASE DE DATOS ---
+// Esto evita que electron/db.js intente correr migraciones sobre tablas que ya están listas
+db.pragma("user_version = 5");
+console.log("✅ Versión de base de datos actualizada a 5.");
 
-// 2. CREAR PRESENTACIONES
-const presentations = [
-  { name: "1/4 Kilo", price: 2500 },
-  { name: "1/2 Kilo", price: 4500 },
-  { name: "1 Kilo", price: 8000 },
-  { name: "Cucurucho", price: 1200 },
-  { name: "Vasito", price: 800 },
-  { name: "Batido", price: 3000 },
-];
-
-const insertPresentation = db.prepare(
-  "INSERT INTO presentations (name, price) VALUES (@name, @price)"
+// --- 2. INSERTAR PRODUCTOS ---
+console.log("🍦 Creando productos...");
+const insertProd = db.prepare(
+  "INSERT INTO presentations (name, price_local, price_delivery) VALUES (?, ?, ?)"
 );
 
-for (const p of presentations) {
-  insertPresentation.run(p);
-}
-console.log(`✅ Se crearon ${presentations.length} presentaciones base.`);
+const p_kilo = insertProd.run("1 Kilo", 8000, 9500).lastInsertRowid;
+const p_medio = insertProd.run("1/2 Kilo", 4500, 5200).lastInsertRowid;
+const p_cuarto = insertProd.run("1/4 Kilo", 2500, 3000).lastInsertRowid;
+insertProd.run("Cucurucho", 2000, 2000);
+insertProd.run("Vasito", 1500, 1500);
+insertProd.run("Postre Almendrado", 1200, 1500);
 
-// 3. GENERAR VENTAS ALEATORIAS
-const SALES_TO_GENERATE = 500;
-const TYPES = ["local", "pedidos_ya"];
-
-function getRandomDate(daysBack) {
-  const date = new Date();
-  date.setDate(date.getDate() - Math.floor(Math.random() * daysBack));
-  const hour = Math.floor(Math.random() * (23 - 11 + 1)) + 11;
-  const minute = Math.floor(Math.random() * 60);
-  date.setHours(hour, minute, 0, 0);
-  return date.toISOString();
-}
-
-const insertSale = db.prepare(`
-  INSERT INTO sales (type, presentation_name, price_base, quantity, total, date)
-  VALUES (@type, @presentation_name, @price_base, @quantity, @total, @date)
+// --- 3. INSERTAR PROMOCIONES ---
+console.log("🏷️  Creando promociones...");
+const insertPromo = db.prepare(`
+  INSERT INTO promotions (name, presentation_id, min_quantity, discount_type, discount_value, active_days, start_date, end_date, channel, is_active) 
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
-const allPresentations = db.prepare("SELECT * FROM presentations").all();
+// Promo Martes (Local)
+insertPromo.run(
+  "Martes de 1/4",
+  p_cuarto,
+  2,
+  "fixed_price",
+  4500,
+  "2",
+  null,
+  null,
+  "local",
+  1
+);
 
-const generateSales = db.transaction(() => {
-  for (let i = 0; i < SALES_TO_GENERATE; i++) {
-    const type = Math.random() > 0.3 ? "local" : "pedidos_ya";
-    const presentation =
-      allPresentations[Math.floor(Math.random() * allPresentations.length)];
-    const quantity = Math.floor(Math.random() * 3) + 1;
-    const total = presentation.price * quantity;
-    const date = getRandomDate(60);
+// Promo Semana (Por fecha, todos los canales)
+const today = new Date().toISOString().split("T")[0];
+const nextWeek = new Date();
+nextWeek.setDate(nextWeek.getDate() + 7);
+const nextWeekStr = nextWeek.toISOString().split("T")[0];
+insertPromo.run(
+  "Semana del Kilo",
+  p_kilo,
+  1,
+  "percentage",
+  10,
+  "",
+  today,
+  nextWeekStr,
+  "all",
+  1
+);
 
-    insertSale.run({
-      type,
-      presentation_name: presentation.name,
-      price_base: presentation.price,
-      quantity,
-      total,
-      date,
-    });
-  }
-});
+// Promo Pack (Solo Delivery)
+insertPromo.run(
+  "Pack Delivery 3x2",
+  p_medio,
+  3,
+  "amount_off",
+  5200,
+  "",
+  null,
+  null,
+  "pedidos_ya",
+  1
+);
 
-generateSales();
+// --- 4. INSERTAR VENTAS ---
+console.log("💰 Generando ventas históricas...");
+const insertSale = db.prepare(
+  `INSERT INTO sales (type, presentation_name, price_base, quantity, total, date) VALUES (?, ?, ?, ?, ?, ?)`
+);
+const getDate = (d, h) => {
+  const date = new Date();
+  date.setDate(date.getDate() - d);
+  date.setHours(h, 0, 0);
+  return date.toISOString();
+};
 
-console.log(`✅ Se generaron ${SALES_TO_GENERATE} ventas históricas.`);
-console.log("🚀 ¡Base de datos poblada con éxito!");
+// Ventas de prueba
+insertSale.run("local", "1 Kilo", 8000, 1, 8000, getDate(0, 10));
+insertSale.run("pedidos_ya", "1 Kilo", 9500, 1, 8550, getDate(0, 12)); // Con desc 10%
+insertSale.run("local", "1/4 Kilo", 2500, 2, 5000, getDate(0, 15));
+insertSale.run("local", "Cucurucho", 2000, 1, 2000, getDate(0, 16));
+insertSale.run("pedidos_ya", "1/2 Kilo", 5200, 1, 5200, getDate(0, 20));
+
+// Ventas Ayer
+insertSale.run("local", "1 Kilo", 8000, 2, 16000, getDate(1, 11));
+insertSale.run("local", "Vasito", 1500, 3, 4500, getDate(1, 14));
+
+console.log("✅ ¡Datos sembrados correctamente!");
