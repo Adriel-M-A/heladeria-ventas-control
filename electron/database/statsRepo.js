@@ -89,8 +89,19 @@ export function getReports(period, customRange, typeFilter = "all") {
     )
     .all();
 
-  const isDaily = ["week", "month"].includes(period) || period === "custom";
+  // --- LÓGICA MODIFICADA AQUÍ ---
+  // Antes: const isDaily = ["week", "month"].includes(period) || period === "custom";
+
+  // Ahora: Si es "custom" pero las fechas coinciden, lo tratamos como horario (isDaily = false)
+  let isDaily = ["week", "month"].includes(period);
+  if (period === "custom") {
+    // Si from es diferente de to, es un rango de varios días -> isDaily = true
+    // Si son iguales, es un solo día -> isDaily = false (para ver por horas)
+    isDaily = customRange?.from !== customRange?.to;
+  }
+
   const timeFormat = isDaily ? "%Y-%m-%d" : "%H";
+
   const trend = db
     .prepare(
       `SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total FROM sales ${fullWhere} GROUP BY label ORDER BY label ASC`
