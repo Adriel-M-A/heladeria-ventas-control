@@ -11,7 +11,7 @@
     "rebuild": "electron-rebuild",
     "electron:dev": "concurrently -k \"cross-env NODE_ENV=development vite\" \"wait-on tcp:5173 && electron .\"",
     "electron:build": "vite build && electron-builder",
-    "db:seed": "npm rebuild better-sqlite3 && node seed.js && npm run rebuild"
+    "db:seed": "cross-env ELECTRON_RUN_AS_NODE=1 electron seed.js"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.8",

@@ -59,7 +59,6 @@ db.exec(`
 `);
 
 // --- IMPORTANTE: MARCAR VERSIÓN DE BASE DE DATOS ---
-// Esto evita que electron/db.js intente correr migraciones sobre tablas que ya están listas
 db.pragma("user_version = 5");
 console.log("✅ Versión de base de datos actualizada a 5.");
 
@@ -69,12 +68,21 @@ const insertProd = db.prepare(
   "INSERT INTO presentations (name, price_local, price_delivery) VALUES (?, ?, ?)"
 );
 
-const p_kilo = insertProd.run("1 Kilo", 8000, 9500).lastInsertRowid;
-const p_medio = insertProd.run("1/2 Kilo", 4500, 5200).lastInsertRowid;
-const p_cuarto = insertProd.run("1/4 Kilo", 2500, 3000).lastInsertRowid;
-insertProd.run("Cucurucho", 2000, 2000);
-insertProd.run("Vasito", 1500, 1500);
-insertProd.run("Postre Almendrado", 1200, 1500);
+// Guardamos los productos en un array para usarlos al generar ventas aleatorias
+const productsData = [
+  { name: "1 Kilo", price_local: 8000, price_delivery: 9500 },
+  { name: "1/2 Kilo", price_local: 4500, price_delivery: 5200 },
+  { name: "1/4 Kilo", price_local: 2500, price_delivery: 3000 },
+  { name: "Cucurucho", price_local: 2000, price_delivery: 2000 },
+  { name: "Vasito", price_local: 1500, price_delivery: 1500 },
+];
+
+const productsMap = {}; // Para guardar los IDs generados si los necesitamos para promociones
+
+productsData.forEach((p) => {
+  const info = insertProd.run(p.name, p.price_local, p.price_delivery);
+  productsMap[p.name] = info.lastInsertRowid;
+});
 
 // --- 3. INSERTAR PROMOCIONES ---
 console.log("🏷️  Creando promociones...");
@@ -86,7 +94,7 @@ const insertPromo = db.prepare(`
 // Promo Martes (Local)
 insertPromo.run(
   "Martes de 1/4",
-  p_cuarto,
+  productsMap["1/4 Kilo"],
   2,
   "fixed_price",
   4500,
@@ -98,18 +106,18 @@ insertPromo.run(
 );
 
 // Promo Semana (Por fecha, todos los canales)
-const today = new Date().toISOString().split("T")[0];
+const todayDate = new Date().toISOString().split("T")[0];
 const nextWeek = new Date();
 nextWeek.setDate(nextWeek.getDate() + 7);
 const nextWeekStr = nextWeek.toISOString().split("T")[0];
 insertPromo.run(
   "Semana del Kilo",
-  p_kilo,
+  productsMap["1 Kilo"],
   1,
   "percentage",
   10,
   "",
-  today,
+  todayDate,
   nextWeekStr,
   "all",
   1
@@ -118,7 +126,7 @@ insertPromo.run(
 // Promo Pack (Solo Delivery)
 insertPromo.run(
   "Pack Delivery 3x2",
-  p_medio,
+  productsMap["1/2 Kilo"],
   3,
   "amount_off",
   5200,
@@ -129,27 +137,67 @@ insertPromo.run(
   1
 );
 
-// --- 4. INSERTAR VENTAS ---
-console.log("💰 Generando ventas históricas...");
+// --- 4. GENERAR VENTAS MASIVAS ---
+console.log("💰 Generando 300 ventas aleatorias...");
+
 const insertSale = db.prepare(
-  `INSERT INTO sales (type, presentation_name, price_base, quantity, total, date) VALUES (?, ?, ?, ?, ?, ?)`
+  `INSERT INTO sales (type, presentation_name, price_base, quantity, total, date) VALUES (@type, @presentation_name, @price_base, @quantity, @total, @date)`
 );
-const getDate = (d, h) => {
+
+// Helpers para aleatoriedad
+const randomInt = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// Función para generar fecha aleatoria en los últimos 60 días
+const getRandomDate = () => {
   const date = new Date();
-  date.setDate(date.getDate() - d);
-  date.setHours(h, 0, 0);
+  // Restar entre 0 y 60 días
+  date.setDate(date.getDate() - randomInt(0, 60));
+  // Hora aleatoria entre las 12:00 y las 23:00
+  date.setHours(randomInt(12, 23), randomInt(0, 59), 0);
   return date.toISOString();
 };
 
-// Ventas de prueba
-insertSale.run("local", "1 Kilo", 8000, 1, 8000, getDate(0, 10));
-insertSale.run("pedidos_ya", "1 Kilo", 9500, 1, 8550, getDate(0, 12)); // Con desc 10%
-insertSale.run("local", "1/4 Kilo", 2500, 2, 5000, getDate(0, 15));
-insertSale.run("local", "Cucurucho", 2000, 1, 2000, getDate(0, 16));
-insertSale.run("pedidos_ya", "1/2 Kilo", 5200, 1, 5200, getDate(0, 20));
+const saleTypes = ["local", "pedidos_ya"];
 
-// Ventas Ayer
-insertSale.run("local", "1 Kilo", 8000, 2, 16000, getDate(1, 11));
-insertSale.run("local", "Vasito", 1500, 3, 4500, getDate(1, 14));
+// Usamos una transacción para que la inserción sea rápida
+const generateSales = db.transaction(() => {
+  for (let i = 0; i < 300; i++) {
+    // 1. Elegir producto al azar
+    const product = randomItem(productsData);
+
+    // 2. Elegir tipo de venta (Local o PedidosYa)
+    const type = randomItem(saleTypes);
+
+    // 3. Determinar precio base según el tipo
+    const priceBase =
+      type === "local" ? product.price_local : product.price_delivery;
+
+    // 4. Cantidad aleatoria (entre 1 y 4 unidades)
+    const quantity = randomInt(1, 4);
+
+    // 5. Calcular total (Simple, sin aplicar lógica compleja de promos aquí para el seed)
+    const total = priceBase * quantity;
+
+    // 6. Generar fecha
+    const date = getRandomDate();
+
+    // 7. Insertar
+    insertSale.run({
+      type,
+      presentation_name: product.name,
+      price_base: priceBase,
+      quantity,
+      total,
+      date,
+    });
+  }
+});
+
+generateSales();
 
 console.log("✅ ¡Datos sembrados correctamente!");
+
+db.close();
+process.exit(0);
