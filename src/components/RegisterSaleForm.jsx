@@ -59,8 +59,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       return;
     }
 
-    // LÓGICA DE PRECIO DOBLE:
-    // Seleccionamos el precio base según el tipo de venta elegido
     const price =
       formData.type === "pedidos_ya"
         ? selectedPresentation.price_delivery
@@ -77,6 +75,11 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       if (p.presentation_id !== selectedPresentation.id) return false;
       if (p.is_active !== 1) return false;
       if (qty < p.min_quantity) return false;
+
+      // FILTRO DE CANAL (NUEVO)
+      // Si la promo NO es 'all' y NO coincide con el tipo de venta actual, la descartamos.
+      if (p.channel && p.channel !== "all" && p.channel !== formData.type)
+        return false;
 
       if (p.start_date && todayStr < p.start_date) return false;
       if (p.end_date && todayStr > p.end_date) return false;
@@ -134,7 +137,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       return;
     }
 
-    // Seleccionamos el precio unitario correcto para guardarlo en el historial
     const currentUnitPrice =
       formData.type === "pedidos_ya"
         ? selectedPresentation.price_delivery
@@ -143,7 +145,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     const saleData = {
       type: formData.type,
       presentation_name: selectedPresentation.name,
-      price_base: currentUnitPrice, // Guardamos el precio unitario que correspondía (local o delivery)
+      price_base: currentUnitPrice,
       quantity: parseInt(formData.quantity),
       total: calculation.total,
       date: new Date().toISOString(),

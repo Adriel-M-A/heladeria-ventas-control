@@ -19,15 +19,17 @@ export function addPromotion(promo) {
   const stmt = db.prepare(`
     INSERT INTO promotions (
       name, presentation_id, min_quantity, discount_type, discount_value, 
-      active_days, start_date, end_date, is_active
+      active_days, start_date, end_date, channel, is_active
     )
     VALUES (
       @name, @presentation_id, @min_quantity, @discount_type, @discount_value, 
-      @active_days, @start_date, @end_date, @is_active
+      @active_days, @start_date, @end_date, @channel, @is_active
     )
   `);
-  const info = stmt.run(promo);
-  return { id: info.lastInsertRowid, ...promo };
+  // Si no viene channel, por defecto 'all'
+  const data = { ...promo, channel: promo.channel || "all" };
+  const info = stmt.run(data);
+  return { id: info.lastInsertRowid, ...data };
 }
 
 export function updatePromotion(promo) {
@@ -42,11 +44,13 @@ export function updatePromotion(promo) {
       active_days = @active_days,
       start_date = @start_date,
       end_date = @end_date,
+      channel = @channel,
       is_active = @is_active
     WHERE id = @id
   `);
-  stmt.run(promo);
-  return promo;
+  const data = { ...promo, channel: promo.channel || "all" };
+  stmt.run(data);
+  return data;
 }
 
 export function deletePromotion(id) {

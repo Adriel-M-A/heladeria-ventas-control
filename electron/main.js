@@ -41,6 +41,8 @@ function createWindow() {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
+  win.webContents.openDevTools();
+
   win.once("ready-to-show", () => {
     win.show();
   });
