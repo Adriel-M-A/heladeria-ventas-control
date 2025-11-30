@@ -176,6 +176,7 @@ export default function ProductManager() {
                 <Input
                   type="number"
                   value={prodForm.price_local}
+                  min={0}
                   onChange={(e) =>
                     setProdForm({ ...prodForm, price_local: e.target.value })
                   }
@@ -189,6 +190,7 @@ export default function ProductManager() {
                 <Input
                   type="number"
                   value={prodForm.price_delivery}
+                  min={0}
                   onChange={(e) =>
                     setProdForm({ ...prodForm, price_delivery: e.target.value })
                   }

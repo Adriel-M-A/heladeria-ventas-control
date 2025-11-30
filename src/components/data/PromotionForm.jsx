@@ -149,6 +149,7 @@ export default function PromotionForm({
             <Input
               type="number"
               value={formData.min_quantity}
+              min={1}
               onChange={(e) =>
                 setFormData({ ...formData, min_quantity: e.target.value })
               }
@@ -181,6 +182,7 @@ export default function PromotionForm({
             <Input
               type="number"
               value={formData.discount_value}
+              min={0}
               onChange={(e) =>
                 setFormData({ ...formData, discount_value: e.target.value })
               }
