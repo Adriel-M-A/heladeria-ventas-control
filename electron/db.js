@@ -13,6 +13,7 @@ const dbPath = app.isPackaged
 let db = null;
 
 const migrations = [
+  // MIGRACIÓN 1: Estructura inicial
   (db) => {
     db.exec(`
       CREATE TABLE IF NOT EXISTS presentations (
@@ -35,6 +36,7 @@ const migrations = [
       );
     `);
   },
+  // MIGRACIÓN 2: Tabla de Promociones
   (db) => {
     db.exec(`
       CREATE TABLE IF NOT EXISTS promotions (
@@ -50,12 +52,14 @@ const migrations = [
       );
     `);
   },
+  // MIGRACIÓN 3: Fechas de vigencia en Promociones
   (db) => {
     db.exec(`
       ALTER TABLE promotions ADD COLUMN start_date TEXT;
       ALTER TABLE promotions ADD COLUMN end_date TEXT;
     `);
   },
+  // MIGRACIÓN 4: Precios diferenciados (Local vs Delivery)
   (db) => {
     db.exec(`
       ALTER TABLE presentations ADD COLUMN price_delivery INTEGER;
@@ -67,6 +71,13 @@ const migrations = [
   (db) => {
     db.exec(`
       ALTER TABLE promotions ADD COLUMN channel TEXT DEFAULT 'all'; -- 'all', 'local', 'pedidos_ya'
+    `);
+  },
+  // MIGRACIÓN 6: Índice para búsquedas rápidas por fecha (NUEVA)
+  (db) => {
+    console.log("[DB] Creando índice para optimizar búsquedas por fecha...");
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date);
     `);
   },
 ];
