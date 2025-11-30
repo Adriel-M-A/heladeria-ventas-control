@@ -63,11 +63,11 @@ export default function SettingsView() {
       </div>
 
       <Tabs defaultValue="data" className="w-full">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-1 lg:w-[200px] h-10">
           <TabsTrigger value="data" className="flex gap-2">
             <Database className="w-4 h-4" /> Gestión de Datos
           </TabsTrigger>
-          {/* Aquí podrías agregar más tabs como 'General' o 'Apariencia' en el futuro */}
+          {/* Si agregas más tabs, cambia grid-cols-1 a grid-cols-2 */}
         </TabsList>
 
         <TabsContent value="data" className="mt-6 space-y-6">

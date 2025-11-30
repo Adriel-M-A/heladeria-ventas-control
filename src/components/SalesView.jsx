@@ -3,7 +3,8 @@ import { toast } from "sonner";
 import RegisterSaleForm from "@/components/RegisterSaleForm";
 import SalesTable from "@/components/SalesTable";
 import { CreditCard, DollarSign, TrendingUp } from "lucide-react";
-import { cn } from "@/lib/utils";
+// 1. Importamos los componentes de Tabs
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SalesView() {
   const [activeSaleTab, setActiveSaleTab] = useState("local");
@@ -94,6 +95,7 @@ export default function SalesView() {
             </div>
           </div>
 
+          {/* Tarjeta General */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between h-32 text-white">
             <div className="flex justify-between items-start">
               <span className="text-slate-300 font-medium text-sm">
@@ -111,29 +113,31 @@ export default function SalesView() {
           </div>
         </div>
 
-        <div className="flex gap-2 bg-slate-100 p-1 rounded-lg w-fit mx-auto">
-          <button
-            onClick={() => setActiveSaleTab("local")}
-            className={cn(
-              "w-40 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
-              activeSaleTab === "local"
-                ? "bg-sale-local text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-            )}
+        {/* 2. Componente Tabs Reutilizado como Toggle con Colores Personalizados */}
+        <div className="flex justify-center mt-2">
+          <Tabs
+            value={activeSaleTab}
+            onValueChange={setActiveSaleTab}
+            className="w-auto"
           >
-            Ventas Local
-          </button>
-          <button
-            onClick={() => setActiveSaleTab("pedidos_ya")}
-            className={cn(
-              "w-40 px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
-              activeSaleTab === "pedidos_ya"
-                ? "bg-sale-delivery text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-            )}
-          >
-            Ventas PedidosYa
-          </button>
+            <TabsList className="grid w-full grid-cols-2 h-10 bg-slate-100 p-1">
+              {/* Opción LOCAL: Azul al activarse */}
+              <TabsTrigger
+                value="local"
+                className="px-8 data-[state=active]:bg-sale-local data-[state=active]:text-white transition-all duration-200"
+              >
+                Ventas Local
+              </TabsTrigger>
+
+              {/* Opción PEDIDOSYA: Rosa al activarse */}
+              <TabsTrigger
+                value="pedidos_ya"
+                className="px-8 data-[state=active]:bg-sale-delivery data-[state=active]:text-white transition-all duration-200"
+              >
+                Ventas PedidosYa
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         <SalesTable type={activeSaleTab} key={lastSaleTime + activeSaleTab} />

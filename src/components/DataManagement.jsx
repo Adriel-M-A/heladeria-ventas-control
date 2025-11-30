@@ -16,7 +16,7 @@ export default function DataManagement() {
       </div>
 
       <Tabs defaultValue="products" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px] h-10">
           <TabsTrigger value="products" className="flex gap-2">
             <Package className="w-4 h-4" /> Productos
           </TabsTrigger>
