@@ -82,7 +82,9 @@ export default function Layout({ children, currentView, onNavigate }) {
           "pt-16 md:pt-0"
         )}
       >
-        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-2">{children}</div>
+        <div className="p-6 md:px-16 md:py-8 max-w-7xl mx-auto space-y-2">
+          {children}
+        </div>
       </main>
     </div>
   );

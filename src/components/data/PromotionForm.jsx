@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, X, Calendar, XCircle } from "lucide-react";
+import { Save, Calendar, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ export default function PromotionForm({
   onCancel,
   isEditing,
 }) {
-  const daysMap = ["D", "L", "M", "M", "J", "V", "S"];
+  const daysMap = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
   const hasDates = !!formData.start_date || !!formData.end_date;
   const hasDays = formData.active_days.length > 0;
@@ -38,7 +38,31 @@ export default function PromotionForm({
 
   const handleDateChange = (field, value) => {
     if (hasDays && value !== "") return;
-    setFormData((prev) => ({ ...prev, [field]: value }));
+
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value };
+
+      // 1. Lógica de Auto-completado
+      if (field === "start_date" && value !== "" && !prev.end_date) {
+        newData.end_date = value;
+      }
+      if (field === "end_date" && value !== "" && !prev.start_date) {
+        newData.start_date = value;
+      }
+
+      // 2. Validación de Coherencia (Inicio no puede ser mayor que Fin)
+      if (newData.start_date && newData.end_date) {
+        if (newData.start_date > newData.end_date) {
+          if (field === "start_date") {
+            newData.end_date = newData.start_date;
+          } else {
+            newData.start_date = newData.end_date;
+          }
+        }
+      }
+
+      return newData;
+    });
   };
 
   const clearDates = () =>
@@ -70,16 +94,7 @@ export default function PromotionForm({
               Configura las reglas automáticas para aplicar descuentos.
             </p>
           </div>
-          {isEditing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onCancel}
-              className="text-slate-500 hover:text-slate-900"
-            >
-              <X className="w-4 h-4 mr-2" /> Cancelar Edición
-            </Button>
-          )}
+          {/* El botón de cancelar se movió abajo */}
         </div>
       </CardHeader>
 
@@ -268,7 +283,7 @@ export default function PromotionForm({
                   key={idx}
                   onClick={() => toggleDay(idx)}
                   className={cn(
-                    "flex-1 h-9 rounded-md text-xs font-bold transition-all border",
+                    "flex-1 h-9 rounded-md text-[10px] font-bold transition-all border px-1",
                     formData.active_days.includes(idx)
                       ? "bg-slate-800 text-white border-slate-800 shadow-md"
                       : "bg-white text-slate-400 border-slate-200 hover:border-slate-400 hover:text-slate-600"
@@ -281,8 +296,7 @@ export default function PromotionForm({
           </div>
         </div>
 
-        {/* Botón de Acción */}
-        <div>
+        <div className="flex gap-2">
           <Button
             onClick={handleSubmit}
             className="w-full bg-slate-900 hover:bg-slate-800 text-white h-11 text-base shadow-md"
@@ -290,6 +304,15 @@ export default function PromotionForm({
             <Save className="w-4 h-4 mr-2" />
             {isEditing ? "Guardar Cambios" : "Crear Promoción"}
           </Button>
+          {isEditing && (
+            <Button
+              onClick={onCancel}
+              variant="outline"
+              className="w-1/3 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 h-11"
+            >
+              Cancelar
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

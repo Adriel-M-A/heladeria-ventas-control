@@ -196,4 +196,5 @@ export default function PromotionList({ promotions, onEdit, onDelete }) {
   );
 }
 
-const daysMap = ["D", "L", "M", "M", "J", "V", "S"];
+// CAMBIO AQUÍ: Array de días actualizado para coincidir con el formulario
+const daysMap = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
