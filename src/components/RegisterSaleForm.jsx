@@ -76,8 +76,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       if (p.is_active !== 1) return false;
       if (qty < p.min_quantity) return false;
 
-      // FILTRO DE CANAL (NUEVO)
-      // Si la promo NO es 'all' y NO coincide con el tipo de venta actual, la descartamos.
       if (p.channel && p.channel !== "all" && p.channel !== formData.type)
         return false;
 
@@ -137,16 +135,17 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       return;
     }
 
-    const currentUnitPrice =
-      formData.type === "pedidos_ya"
-        ? selectedPresentation.price_delivery
-        : selectedPresentation.price_local;
+    const qty = parseInt(formData.quantity);
+
+    // CORRECCIÓN: Calcula el precio unitario manteniendo hasta 2 decimales
+    const effectiveUnitPrice =
+      Math.round((calculation.total / qty) * 100) / 100;
 
     const saleData = {
       type: formData.type,
       presentation_name: selectedPresentation.name,
-      price_base: currentUnitPrice,
-      quantity: parseInt(formData.quantity),
+      price_base: effectiveUnitPrice,
+      quantity: qty,
       total: calculation.total,
       date: new Date().toISOString(),
     };
