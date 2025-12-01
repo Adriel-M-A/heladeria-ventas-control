@@ -8,11 +8,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   deletePresentation: (id) => ipcRenderer.invoke("delete-presentation", id),
 
   // --- VENTAS ---
-  // Nota: Ahora soporta paginación (page, pageSize)
-  getSales: (type, page, pageSize) =>
-    ipcRenderer.invoke("get-sales", type, page, pageSize),
+  // AHORA RECIBE period Y customRange
+  getSales: (type, page, pageSize, period, customRange) =>
+    ipcRenderer.invoke("get-sales", type, page, pageSize, period, customRange),
   addSale: (data) => ipcRenderer.invoke("add-sale", data),
-  deleteSale: (id) => ipcRenderer.invoke("delete-sale", id), // Función de cancelar venta
+  deleteSale: (id) => ipcRenderer.invoke("delete-sale", id),
 
   // --- ESTADÍSTICAS Y REPORTES ---
   getStats: () => ipcRenderer.invoke("get-stats"),

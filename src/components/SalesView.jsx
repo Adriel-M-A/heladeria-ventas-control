@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import RegisterSaleForm from "@/components/RegisterSaleForm";
 import SalesTable from "@/components/SalesTable";
 import { CreditCard, DollarSign, TrendingUp } from "lucide-react";
-// 1. Importamos los componentes de Tabs
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SalesView() {
@@ -172,7 +171,10 @@ export default function SalesView() {
           </Tabs>
         </div>
 
-        <SalesTable type={activeSaleTab} key={lastSaleTime + activeSaleTab} />
+        {/* CONTENEDOR CON ALTURA FIJA PARA FORZAR EL SCROLL EN LA TABLA */}
+        <div className="h-[400px] w-full">
+          <SalesTable type={activeSaleTab} key={lastSaleTime + activeSaleTab} />
+        </div>
       </div>
     </div>
   );

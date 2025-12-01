@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import SalesTable from "./SalesTable"; // <--- RECUPERADO: Importación de la tabla
 
 export default function ReportsView() {
   const [period, setPeriod] = useState("today");
@@ -61,15 +62,23 @@ export default function ReportsView() {
     setCustomRange((prev) => ({ ...prev, [name]: value }));
   };
 
+  // --- LÓGICA DE FORMATEO (Incluye la mejora mensual) ---
   const formatXAxis = (tick) => {
-    if (!data?.details?.isDaily) {
-      return `${tick}:00`;
+    if (data?.details?.isMonthly) {
+      // Formato Mensual: "MM/AAAA"
+      const [year, month] = tick.split("-");
+      return `${month}/${year}`;
     }
-    const date = new Date(tick + "T00:00:00");
-    return date.toLocaleDateString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-    });
+    if (data?.details?.isDaily) {
+      // Formato Diario: "DD/MM"
+      const date = new Date(tick + "T00:00:00");
+      return date.toLocaleDateString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+      });
+    }
+    // Formato Horario: "HH:00"
+    return `${tick}:00`;
   };
 
   if (!data && !loading) return <div>No hay datos disponibles.</div>;
@@ -93,7 +102,7 @@ export default function ReportsView() {
   const currentTotal = data?.cards[period] || { count: 0, revenue: 0 };
 
   return (
-    <div className="space-y-6 duration-300">
+    <div className="space-y-6 duration-300 pb-8">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -163,7 +172,7 @@ export default function ReportsView() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start h-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* COLUMNA 1: VENTAS POR TIPO */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
@@ -401,7 +410,13 @@ export default function ReportsView() {
             <div>
               <h3 className="text-slate-900 font-bold text-sm">Tendencia</h3>
               <p className="text-slate-500 text-xs">
-                Ingresos ({data?.details?.isDaily ? "día" : "hora"})
+                Ingresos (
+                {data?.details?.isMonthly
+                  ? "mensual"
+                  : data?.details?.isDaily
+                  ? "diario"
+                  : "horario"}
+                )
               </p>
             </div>
           </div>
@@ -444,11 +459,19 @@ export default function ReportsView() {
                     `$ ${value.toLocaleString("es-AR")}`,
                     "Ingresos",
                   ]}
-                  labelFormatter={(label) =>
-                    data?.details?.isDaily
-                      ? new Date(label + "T00:00:00").toLocaleDateString()
-                      : `${label}:00 Hs`
-                  }
+                  labelFormatter={(label) => {
+                    if (data?.details?.isMonthly) {
+                      const date = new Date(label + "-02T00:00:00");
+                      return date.toLocaleDateString("es-AR", {
+                        month: "long",
+                        year: "numeric",
+                      });
+                    }
+                    if (data?.details?.isDaily) {
+                      return new Date(label + "T00:00:00").toLocaleDateString();
+                    }
+                    return `${label}:00 Hs`;
+                  }}
                 />
                 <Bar
                   dataKey="total"
@@ -466,6 +489,15 @@ export default function ReportsView() {
             </ResponsiveContainer>
           </div>
         </Card>
+      </div>
+
+      {/* --- SECCIÓN NUEVA: TABLA DE DETALLE DE VENTAS (RECUPERADA) --- */}
+      <div className="h-[400px]">
+        <SalesTable
+          type={activeType}
+          period={period}
+          customRange={customRange}
+        />
       </div>
     </div>
   );

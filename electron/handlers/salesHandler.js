@@ -23,8 +23,11 @@ function validateSale(data) {
 }
 
 export function setupSalesHandlers() {
-  handleIpc("get-sales", (event, type, page, pageSize) =>
-    repo.getSales(type, page, pageSize)
+  // AHORA RECIBE period Y customRange
+  handleIpc(
+    "get-sales",
+    (event, type, page, pageSize, period = "today", customRange = null) =>
+      repo.getSales(type, page, pageSize, period, customRange)
   );
 
   handleIpc("add-sale", (event, data) => {
@@ -32,7 +35,6 @@ export function setupSalesHandlers() {
     return repo.addSale(valid);
   });
 
-  // NUEVO HANDLER
   handleIpc("delete-sale", (event, id) => {
     if (!id) throw new Error("ID de venta requerido.");
     return repo.deleteSale(id);

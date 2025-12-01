@@ -13,22 +13,30 @@ import { ChevronLeft, ChevronRight, Trash2, AlertCircle } from "lucide-react";
 import { cn, formatError } from "@/lib/utils";
 import { toast } from "sonner";
 
-export default function SalesTable({ type = "local" }) {
+export default function SalesTable({
+  type = "local",
+  period = "today",
+  customRange = null,
+}) {
   const [sales, setSales] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 10;
 
-  const isPedidosYa = type === "pedidos_ya";
-
   useEffect(() => {
     setPage(1);
-  }, [type]);
+  }, [type, period, customRange]);
 
   const fetchSales = async () => {
     if (!window.electronAPI) return;
     try {
-      const result = await window.electronAPI.getSales(type, page, pageSize);
+      const result = await window.electronAPI.getSales(
+        type,
+        page,
+        pageSize,
+        period,
+        customRange
+      );
       setSales(result.data);
       setTotalPages(result.totalPages);
     } catch (error) {
@@ -39,9 +47,8 @@ export default function SalesTable({ type = "local" }) {
 
   useEffect(() => {
     fetchSales();
-  }, [type, page]);
+  }, [type, page, period, customRange]);
 
-  // --- MEJORA VISUAL AQUÍ ---
   const handleCancelSale = async (id) => {
     toast("¿Cancelar esta venta?", {
       description:
@@ -59,10 +66,8 @@ export default function SalesTable({ type = "local" }) {
           }
         },
       },
-      cancel: {
-        label: "Volver",
-      },
-      duration: 6000, // Un poco más de tiempo para leer porque es una acción delicada
+      cancel: { label: "Volver" },
+      duration: 6000,
     });
   };
 
@@ -84,62 +89,79 @@ export default function SalesTable({ type = "local" }) {
     }
   };
 
-  const theme = {
-    headerBg: isPedidosYa
-      ? "bg-sale-delivery border-sale-delivery"
-      : "bg-sale-local border-sale-local",
-    tableHeaderRow: isPedidosYa
-      ? "bg-sale-delivery/10 border-sale-delivery/20"
-      : "bg-sale-local/10 border-sale-local/20",
-    headerText: isPedidosYa ? "text-sale-delivery" : "text-sale-local",
-    priceText: isPedidosYa ? "text-sale-delivery" : "text-sale-local",
-    hoverRow: isPedidosYa
-      ? "hover:bg-sale-delivery/5"
-      : "hover:bg-sale-local/5",
+  let themeClass = {
+    header: "bg-sale-local border-sale-local",
+    text: "text-sale-local",
+    rowHover: "hover:bg-sale-local/5",
+    headerRow: "bg-sale-local/10 border-sale-local/20",
   };
+
+  let title = "Historial Local";
+
+  if (type === "pedidos_ya") {
+    themeClass = {
+      header: "bg-sale-delivery border-sale-delivery",
+      text: "text-sale-delivery",
+      rowHover: "hover:bg-sale-delivery/5",
+      headerRow: "bg-sale-delivery/10 border-sale-delivery/20",
+    };
+    title = "Historial PedidosYa";
+  } else if (type === "all") {
+    themeClass = {
+      header: "bg-slate-800 border-slate-800",
+      text: "text-slate-700",
+      rowHover: "hover:bg-slate-50",
+      headerRow: "bg-slate-100 border-slate-200",
+    };
+    title = "Historial General de Ventas";
+  }
 
   return (
     <Card className="overflow-hidden border-slate-200 shadow-sm bg-white flex flex-col h-full">
       <div
         className={cn(
           "px-6 py-3 border-b transition-colors duration-300",
-          theme.headerBg
+          themeClass.header
         )}
       >
-        <h3 className="text-white font-medium text-sm">
-          Historial de Ventas {isPedidosYa ? "PedidosYa" : "Local"}
-        </h3>
+        <h3 className="text-white font-medium text-sm">{title}</h3>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      {/* CAMBIO: overflow-hidden aquí para que el scroll lo maneje el componente Table interno */}
+      <div className="flex-1 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow
-              className={cn("border-b transition-colors", theme.tableHeaderRow)}
+              className={cn("border-b transition-colors", themeClass.headerRow)}
             >
               <TableHead
-                className={cn("w-[180px] font-semibold", theme.headerText)}
+                className={cn("w-[180px] font-semibold", themeClass.text)}
               >
                 Fecha Venta
               </TableHead>
-              <TableHead className={cn("font-semibold", theme.headerText)}>
+              <TableHead className={cn("font-semibold", themeClass.text)}>
                 Presentación
               </TableHead>
-              <TableHead className={cn("font-semibold", theme.headerText)}>
+              {type === "all" && (
+                <TableHead className={cn("font-semibold", themeClass.text)}>
+                  Canal
+                </TableHead>
+              )}
+              <TableHead className={cn("font-semibold", themeClass.text)}>
                 Precio Base
               </TableHead>
-              <TableHead className={cn("font-semibold", theme.headerText)}>
-                Cantidad
+              <TableHead className={cn("font-semibold", themeClass.text)}>
+                Cant.
               </TableHead>
               <TableHead
-                className={cn("text-right font-semibold", theme.headerText)}
+                className={cn("text-right font-semibold", themeClass.text)}
               >
-                Precio Total
+                Total
               </TableHead>
               <TableHead
                 className={cn(
                   "text-right font-semibold w-[80px]",
-                  theme.headerText
+                  themeClass.text
                 )}
               >
                 Acción
@@ -153,7 +175,7 @@ export default function SalesTable({ type = "local" }) {
                   key={sale.id}
                   className={cn(
                     "border-slate-100 transition-colors",
-                    theme.hoverRow
+                    themeClass.rowHover
                   )}
                 >
                   <TableCell className="font-medium text-slate-700">
@@ -162,15 +184,27 @@ export default function SalesTable({ type = "local" }) {
                   <TableCell className="text-slate-700">
                     {sale.presentation_name}
                   </TableCell>
+                  {type === "all" && (
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "text-[10px] uppercase font-bold px-2 py-0.5 rounded border",
+                          sale.type === "local"
+                            ? "bg-sale-local/10 text-sale-local border-sale-local/20"
+                            : "bg-sale-delivery/10 text-sale-delivery border-sale-delivery/20"
+                        )}
+                      >
+                        {sale.type === "local" ? "Local" : "App"}
+                      </span>
+                    </TableCell>
+                  )}
                   <TableCell className="text-slate-700">
                     $ {sale.price_base.toLocaleString("es-AR")}
                   </TableCell>
                   <TableCell className="text-slate-700">
                     {sale.quantity}
                   </TableCell>
-                  <TableCell
-                    className={cn("text-right font-bold", theme.priceText)}
-                  >
+                  <TableCell className={cn("text-right font-bold")}>
                     $ {sale.total.toLocaleString("es-AR")}
                   </TableCell>
                   <TableCell className="text-right">
@@ -189,12 +223,12 @@ export default function SalesTable({ type = "local" }) {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={type === "all" ? 7 : 6}
                   className="h-24 text-center text-slate-500"
                 >
                   <div className="flex flex-col items-center justify-center gap-2">
                     <AlertCircle className="w-6 h-6 text-slate-300" />
-                    <p>No hay ventas registradas hoy.</p>
+                    <p>No se encontraron ventas en este período.</p>
                   </div>
                 </TableCell>
               </TableRow>

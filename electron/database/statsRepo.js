@@ -89,18 +89,40 @@ export function getReports(period, customRange, typeFilter = "all") {
     )
     .all();
 
-  // --- LÓGICA MODIFICADA AQUÍ ---
-  // Antes: const isDaily = ["week", "month"].includes(period) || period === "custom";
+  // --- LÓGICA DE AGRUPACIÓN (HORA / DÍA / MES) ---
+  let isDaily = false;
+  let isMonthly = false;
+  let timeFormat = "%H"; // Por defecto: Horas
 
-  // Ahora: Si es "custom" pero las fechas coinciden, lo tratamos como horario (isDaily = false)
-  let isDaily = ["week", "month"].includes(period);
-  if (period === "custom") {
-    // Si from es diferente de to, es un rango de varios días -> isDaily = true
-    // Si son iguales, es un solo día -> isDaily = false (para ver por horas)
-    isDaily = customRange?.from !== customRange?.to;
+  if (["week", "month"].includes(period)) {
+    isDaily = true;
+    timeFormat = "%Y-%m-%d";
+  } else if (period === "custom") {
+    if (customRange?.from && customRange?.to) {
+      if (customRange.from === customRange.to) {
+        // Mismo día: Por horas
+        isDaily = false;
+        timeFormat = "%H";
+      } else {
+        // Calcular diferencia en días
+        const from = new Date(customRange.from);
+        const to = new Date(customRange.to);
+        const diffTime = Math.abs(to - from);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 180) {
+          // Más de 6 meses (aprox 180 días): Agrupar por MES
+          isMonthly = true;
+          isDaily = false;
+          timeFormat = "%Y-%m";
+        } else {
+          // Rango normal: Agrupar por DÍA
+          isDaily = true;
+          timeFormat = "%Y-%m-%d";
+        }
+      }
+    }
   }
-
-  const timeFormat = isDaily ? "%Y-%m-%d" : "%H";
 
   const trend = db
     .prepare(
@@ -110,6 +132,12 @@ export function getReports(period, customRange, typeFilter = "all") {
 
   return {
     cards,
-    details: { channels: channelData, presentations, trend, isDaily },
+    details: {
+      channels: channelData,
+      presentations,
+      trend,
+      isDaily,
+      isMonthly, // Enviamos este flag al frontend
+    },
   };
 }
