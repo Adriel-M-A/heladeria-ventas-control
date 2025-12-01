@@ -11,7 +11,6 @@ export function getSales(
   const db = getDB();
   const offset = (page - 1) * pageSize;
 
-  // Obtenemos el rango de fechas dinámico
   const { start, end } = getPeriodRange(period, customRange);
 
   let query = "SELECT * FROM sales";
@@ -19,7 +18,6 @@ export function getSales(
   const params = [];
   const conditions = [];
 
-  // Filtro de Fecha (Inicio y Fin)
   if (start) {
     conditions.push("date >= ?");
     params.push(start);
@@ -29,7 +27,6 @@ export function getSales(
     params.push(end);
   }
 
-  // Filtro de Tipo (Canal)
   if (type && type !== "all") {
     conditions.push("type = ?");
     params.push(type);
@@ -41,16 +38,11 @@ export function getSales(
     countQuery += where;
   }
 
-  // CAMBIO CLAVE AQUÍ:
-  // Antes: ORDER BY id DESC
-  // Ahora: ORDER BY date DESC (fecha más nueva primero), id DESC (desempate)
   query += " ORDER BY date DESC, id DESC LIMIT ? OFFSET ?";
 
   const stmt = db.prepare(query);
-  // Agregamos paginación a los parámetros
   const rows = stmt.all(...params, pageSize, offset);
 
-  // Para el conteo total, usamos los mismos parámetros de filtro (sin limit/offset)
   const totalResult = db.prepare(countQuery).get(...params);
 
   return {
@@ -65,11 +57,13 @@ export function getSales(
 export function addSale(sale) {
   const db = getDB();
   const stmt = db.prepare(`
-    INSERT INTO sales (type, presentation_name, price_base, quantity, total, date)
-    VALUES (@type, @presentation_name, @price_base, @quantity, @total, @date)
+    INSERT INTO sales (type, presentation_name, price_base, quantity, total, date, payment_method)
+    VALUES (@type, @presentation_name, @price_base, @quantity, @total, @date, @payment_method)
   `);
-  const info = stmt.run(sale);
-  return { id: info.lastInsertRowid, ...sale };
+  // Aseguramos un valor por defecto si no viene
+  const data = { payment_method: "efectivo", ...sale };
+  const info = stmt.run(data);
+  return { id: info.lastInsertRowid, ...data };
 }
 
 export function deleteSale(id) {

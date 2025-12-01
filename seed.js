@@ -10,7 +10,6 @@ console.log(`🌱 Iniciando siembra de datos en: ${dbPath}`);
 
 const db = new Database(dbPath);
 
-// --- 1. REINICIO DE ESTRUCTURA ---
 console.log("🧹 Reiniciando estructura de la base de datos...");
 
 db.exec("DROP TABLE IF EXISTS sales;");
@@ -18,7 +17,6 @@ db.exec("DROP TABLE IF EXISTS promotions;");
 db.exec("DROP TABLE IF EXISTS presentations;");
 db.exec("DROP TABLE IF EXISTS settings;");
 
-// Creamos las tablas con el ESQUEMA FINAL COMPLETO
 db.exec(`
   CREATE TABLE presentations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +32,8 @@ db.exec(`
     price_base INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
     total INTEGER NOT NULL,
-    date TEXT NOT NULL
+    date TEXT NOT NULL,
+    payment_method TEXT DEFAULT 'efectivo'
   );
 
   CREATE TABLE promotions (
@@ -58,17 +57,15 @@ db.exec(`
   );
 `);
 
-// --- IMPORTANTE: MARCAR VERSIÓN DE BASE DE DATOS ---
-db.pragma("user_version = 5");
-console.log("✅ Versión de base de datos actualizada a 5.");
+// Versión actualizada para coincidir con la migración 7
+db.pragma("user_version = 7");
+console.log("✅ Versión de base de datos actualizada a 7.");
 
-// --- 2. INSERTAR PRODUCTOS ---
 console.log("🍦 Creando productos...");
 const insertProd = db.prepare(
   "INSERT INTO presentations (name, price_local, price_delivery) VALUES (?, ?, ?)"
 );
 
-// Guardamos los productos en un array para usarlos al generar ventas aleatorias
 const productsData = [
   { name: "1 Kilo", price_local: 8000, price_delivery: 9500 },
   { name: "1/2 Kilo", price_local: 4500, price_delivery: 5200 },
@@ -77,21 +74,19 @@ const productsData = [
   { name: "Vasito", price_local: 1500, price_delivery: 1500 },
 ];
 
-const productsMap = {}; // Para guardar los IDs generados si los necesitamos para promociones
+const productsMap = {};
 
 productsData.forEach((p) => {
   const info = insertProd.run(p.name, p.price_local, p.price_delivery);
   productsMap[p.name] = info.lastInsertRowid;
 });
 
-// --- 3. INSERTAR PROMOCIONES ---
 console.log("🏷️  Creando promociones...");
 const insertPromo = db.prepare(`
   INSERT INTO promotions (name, presentation_id, min_quantity, discount_type, discount_value, active_days, start_date, end_date, channel, is_active) 
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
-// Promo Martes (Local)
 insertPromo.run(
   "Martes de 1/4",
   productsMap["1/4 Kilo"],
@@ -105,7 +100,6 @@ insertPromo.run(
   1
 );
 
-// Promo Semana (Por fecha, todos los canales)
 const todayDate = new Date().toISOString().split("T")[0];
 const nextWeek = new Date();
 nextWeek.setDate(nextWeek.getDate() + 7);
@@ -123,7 +117,6 @@ insertPromo.run(
   1
 );
 
-// Promo Pack (Solo Delivery)
 insertPromo.run(
   "Pack Delivery 3x2",
   productsMap["1/2 Kilo"],
@@ -137,53 +130,37 @@ insertPromo.run(
   1
 );
 
-// --- 4. GENERAR VENTAS MASIVAS ---
 console.log("💰 Generando 300 ventas aleatorias...");
 
 const insertSale = db.prepare(
-  `INSERT INTO sales (type, presentation_name, price_base, quantity, total, date) VALUES (@type, @presentation_name, @price_base, @quantity, @total, @date)`
+  `INSERT INTO sales (type, presentation_name, price_base, quantity, total, date, payment_method) VALUES (@type, @presentation_name, @price_base, @quantity, @total, @date, @payment_method)`
 );
 
-// Helpers para aleatoriedad
 const randomInt = (min, max) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-// Función para generar fecha aleatoria en los últimos 60 días
 const getRandomDate = () => {
   const date = new Date();
-  // Restar entre 0 y 60 días
   date.setDate(date.getDate() - randomInt(0, 60));
-  // Hora aleatoria entre las 12:00 y las 23:00
   date.setHours(randomInt(12, 23), randomInt(0, 59), 0);
   return date.toISOString();
 };
 
 const saleTypes = ["local", "pedidos_ya"];
+const paymentMethods = ["efectivo", "mercado_pago"];
 
-// Usamos una transacción para que la inserción sea rápida
 const generateSales = db.transaction(() => {
   for (let i = 0; i < 300; i++) {
-    // 1. Elegir producto al azar
     const product = randomItem(productsData);
-
-    // 2. Elegir tipo de venta (Local o PedidosYa)
     const type = randomItem(saleTypes);
-
-    // 3. Determinar precio base según el tipo
+    const payment_method = randomItem(paymentMethods);
     const priceBase =
       type === "local" ? product.price_local : product.price_delivery;
-
-    // 4. Cantidad aleatoria (entre 1 y 4 unidades)
     const quantity = randomInt(1, 4);
-
-    // 5. Calcular total (Simple, sin aplicar lógica compleja de promos aquí para el seed)
     const total = priceBase * quantity;
-
-    // 6. Generar fecha
     const date = getRandomDate();
 
-    // 7. Insertar
     insertSale.run({
       type,
       presentation_name: product.name,
@@ -191,6 +168,7 @@ const generateSales = db.transaction(() => {
       quantity,
       total,
       date,
+      payment_method,
     });
   }
 });

@@ -20,6 +20,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     presentationId: "",
     quantity: "1",
     type: "local",
+    paymentMethod: "efectivo",
   });
 
   const [calculation, setCalculation] = useState({
@@ -71,21 +72,17 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     const todayStr = now.toLocaleDateString("en-CA");
     const dayOfWeek = now.getDay();
 
-    // 1. Filtrar TODAS las promociones que sean válidas para esta venta
     const validPromos = promotions.filter((p) => {
       if (p.presentation_id !== selectedPresentation.id) return false;
       if (p.is_active !== 1) return false;
       if (qty < p.min_quantity) return false;
 
-      // Filtro de Canal
       if (p.channel && p.channel !== "all" && p.channel !== formData.type)
         return false;
 
-      // Filtro de Fechas
       if (p.start_date && todayStr < p.start_date) return false;
       if (p.end_date && todayStr > p.end_date) return false;
 
-      // Filtro de Días de la Semana
       if (p.active_days && p.active_days !== "") {
         const activeDaysList = p.active_days.split(",").map(Number);
         if (!activeDaysList.includes(dayOfWeek)) return false;
@@ -94,19 +91,15 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       return true;
     });
 
-    // 2. Ordenar por prioridad:
-    // Las promociones con FECHAS definidas (start_date o end_date) tienen prioridad
-    // sobre las que son genéricas (solo días de la semana o siempre activas).
     validPromos.sort((a, b) => {
       const aHasDate = !!(a.start_date || a.end_date);
       const bHasDate = !!(b.start_date || b.end_date);
 
-      if (aHasDate && !bHasDate) return -1; // 'a' gana (tiene fecha, 'b' no)
-      if (!aHasDate && bHasDate) return 1; // 'b' gana (tiene fecha, 'a' no)
-      return 0; // Empate
+      if (aHasDate && !bHasDate) return -1;
+      if (!aHasDate && bHasDate) return 1;
+      return 0;
     });
 
-    // Tomamos la primera (la de mayor prioridad)
     const applicablePromo = validPromos.length > 0 ? validPromos[0] : null;
 
     let finalTotal = baseTotal;
@@ -155,8 +148,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     }
 
     const qty = parseInt(formData.quantity);
-
-    // Mantenemos tu corrección de 2 decimales
     const effectiveUnitPrice =
       Math.round((calculation.total / qty) * 100) / 100;
 
@@ -167,6 +158,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       quantity: qty,
       total: calculation.total,
       date: new Date().toISOString(),
+      payment_method: formData.paymentMethod,
     };
 
     try {
@@ -185,7 +177,12 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       );
 
       if (onSaleSuccess) onSaleSuccess();
-      setFormData((prev) => ({ ...prev, quantity: "1", presentationId: "" }));
+      setFormData((prev) => ({
+        ...prev,
+        quantity: "1",
+        presentationId: "",
+        paymentMethod: "efectivo",
+      }));
     } catch (err) {
       console.error("Error venta:", err);
       toast.error(formatError(err));
@@ -214,7 +211,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       )}
 
       <CardContent className="pt-6 grid gap-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-2">
             <Label className="text-slate-600 font-medium">Tipo de Venta</Label>
             <Select
@@ -296,6 +293,34 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
                     {num} {num === 1 ? "unidad" : "unidades"}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-slate-600 font-medium">Forma de Pago</Label>
+            <Select
+              value={formData.paymentMethod}
+              onValueChange={(val) =>
+                setFormData({ ...formData, paymentMethod: val })
+              }
+            >
+              <SelectTrigger className="bg-white border-slate-200 focus:ring-0 focus:ring-offset-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="efectivo" className={selectItemStyles}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>Efectivo</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="mercado_pago" className={selectItemStyles}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span>Mercado Pago</span>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -127,7 +127,6 @@ export default function SalesTable({
         <h3 className="text-white font-medium text-sm">{title}</h3>
       </div>
 
-      {/* CAMBIO: overflow-hidden aquí para que el scroll lo maneje el componente Table interno */}
       <div className="flex-1 overflow-hidden">
         <Table>
           <TableHeader>
@@ -135,12 +134,12 @@ export default function SalesTable({
               className={cn("border-b transition-colors", themeClass.headerRow)}
             >
               <TableHead
-                className={cn("w-[180px] font-semibold", themeClass.text)}
+                className={cn("w-[150px] font-semibold", themeClass.text)}
               >
-                Fecha Venta
+                Fecha
               </TableHead>
               <TableHead className={cn("font-semibold", themeClass.text)}>
-                Presentación
+                Producto
               </TableHead>
               {type === "all" && (
                 <TableHead className={cn("font-semibold", themeClass.text)}>
@@ -148,7 +147,10 @@ export default function SalesTable({
                 </TableHead>
               )}
               <TableHead className={cn("font-semibold", themeClass.text)}>
-                Precio Base
+                Pago
+              </TableHead>
+              <TableHead className={cn("font-semibold", themeClass.text)}>
+                P. Unit
               </TableHead>
               <TableHead className={cn("font-semibold", themeClass.text)}>
                 Cant.
@@ -160,7 +162,7 @@ export default function SalesTable({
               </TableHead>
               <TableHead
                 className={cn(
-                  "text-right font-semibold w-[80px]",
+                  "text-right font-semibold w-[60px]",
                   themeClass.text
                 )}
               >
@@ -198,6 +200,20 @@ export default function SalesTable({
                       </span>
                     </TableCell>
                   )}
+                  <TableCell>
+                    <span
+                      className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded border",
+                        sale.payment_method === "mercado_pago"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      )}
+                    >
+                      {sale.payment_method === "mercado_pago"
+                        ? "Mercado Pago"
+                        : "Efectivo"}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-slate-700">
                     $ {sale.price_base.toLocaleString("es-AR")}
                   </TableCell>
@@ -223,7 +239,7 @@ export default function SalesTable({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={type === "all" ? 7 : 6}
+                  colSpan={type === "all" ? 8 : 7}
                   className="h-24 text-center text-slate-500"
                 >
                   <div className="flex flex-col items-center justify-center gap-2">

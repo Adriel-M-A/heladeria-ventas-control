@@ -6,6 +6,11 @@ function validateSale(data) {
     throw new Error("Tipo de venta inválido.");
   if (!data.presentation_name) throw new Error("Producto obligatorio.");
 
+  // Validación de Método de Pago
+  if (!["efectivo", "mercado_pago"].includes(data.payment_method)) {
+    throw new Error("Forma de pago inválida.");
+  }
+
   const priceBase = Number(data.price_base);
   const quantity = Number(data.quantity);
   const total = Number(data.total);
@@ -23,7 +28,6 @@ function validateSale(data) {
 }
 
 export function setupSalesHandlers() {
-  // AHORA RECIBE period Y customRange
   handleIpc(
     "get-sales",
     (event, type, page, pageSize, period = "today", customRange = null) =>

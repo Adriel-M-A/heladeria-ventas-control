@@ -13,7 +13,6 @@ const dbPath = app.isPackaged
 let db = null;
 
 const migrations = [
-  // MIGRACIÓN 1: Estructura inicial
   (db) => {
     db.exec(`
       CREATE TABLE IF NOT EXISTS presentations (
@@ -36,7 +35,6 @@ const migrations = [
       );
     `);
   },
-  // MIGRACIÓN 2: Tabla de Promociones
   (db) => {
     db.exec(`
       CREATE TABLE IF NOT EXISTS promotions (
@@ -52,14 +50,12 @@ const migrations = [
       );
     `);
   },
-  // MIGRACIÓN 3: Fechas de vigencia en Promociones
   (db) => {
     db.exec(`
       ALTER TABLE promotions ADD COLUMN start_date TEXT;
       ALTER TABLE promotions ADD COLUMN end_date TEXT;
     `);
   },
-  // MIGRACIÓN 4: Precios diferenciados (Local vs Delivery)
   (db) => {
     db.exec(`
       ALTER TABLE presentations ADD COLUMN price_delivery INTEGER;
@@ -67,17 +63,20 @@ const migrations = [
       ALTER TABLE presentations RENAME COLUMN price TO price_local;
     `);
   },
-  // MIGRACIÓN 5: Canal de Venta para Promociones
   (db) => {
     db.exec(`
-      ALTER TABLE promotions ADD COLUMN channel TEXT DEFAULT 'all'; -- 'all', 'local', 'pedidos_ya'
+      ALTER TABLE promotions ADD COLUMN channel TEXT DEFAULT 'all';
     `);
   },
-  // MIGRACIÓN 6: Índice para búsquedas rápidas por fecha (NUEVA)
   (db) => {
-    console.log("[DB] Creando índice para optimizar búsquedas por fecha...");
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date);
+    `);
+  },
+  // NUEVA MIGRACIÓN: Agregar columna payment_method
+  (db) => {
+    db.exec(`
+      ALTER TABLE sales ADD COLUMN payment_method TEXT DEFAULT 'efectivo';
     `);
   },
 ];
@@ -85,26 +84,15 @@ const migrations = [
 function runMigrations() {
   if (!db) return;
   const currentVersion = db.pragma("user_version", { simple: true });
-  console.log(`[DB] Versión actual: ${currentVersion}`);
-
-  let newVersion = currentVersion;
 
   for (let i = currentVersion; i < migrations.length; i++) {
     const nextVersion = i + 1;
-    console.log(`[DB] Aplicando migración v${nextVersion}...`);
     const runMigration = db.transaction(() => {
       migrations[i](db);
       db.pragma(`user_version = ${nextVersion}`);
     });
-    try {
-      runMigration();
-      newVersion = nextVersion;
-    } catch (err) {
-      console.error(`[DB] CRITICAL: Error en migración v${nextVersion}:`, err);
-      throw err;
-    }
+    runMigration();
   }
-  console.log(`[DB] Base de datos en versión ${newVersion}`);
 }
 
 export function connectDB() {
@@ -115,7 +103,6 @@ export function connectDB() {
     runMigrations();
     return db;
   } catch (error) {
-    console.error("Error al conectar con la base de datos:", error);
     throw error;
   }
 }
