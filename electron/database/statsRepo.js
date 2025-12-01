@@ -3,10 +3,8 @@ import { getPeriodRange } from "../utils/dateUtils.js";
 
 export function getStats() {
   const db = getDB();
-  // ... (código existente de getStats sin cambios) ...
-  // Para brevedad, mantengo solo la función getReports que es la que cambia
-  // Si necesitas el getStats completo, avísame, pero es igual al anterior.
-  const startOfDay = new Date().toISOString().split("T")[0]; // Simplificado para ref
+  const startOfDay = new Date().toISOString().split("T")[0];
+
   const local = db
     .prepare(
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'local' AND date >= ?"
@@ -17,6 +15,7 @@ export function getStats() {
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'pedidos_ya' AND date >= ?"
     )
     .get(startOfDay);
+
   return {
     local: { count: local.count || 0, total: local.total || 0 },
     pedidosYa: { count: pedidosYa.count || 0, total: pedidosYa.total || 0 },
@@ -37,12 +36,21 @@ export function getReports(
   const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
 
+  // 1. CONDICIÓN GLOBAL DE TIPO (Para filtrar todo)
+  const typeCondition =
+    typeFilter !== "all" ? `AND type = '${typeFilter}'` : "";
+
+  // 2. QUERY TOTALES (Tarjetas de arriba) - Ahora aceptan filtro
   const queryTotal = (start, end) => {
-    let sql = "SELECT COUNT(*) as count, SUM(total) as revenue FROM sales";
-    const conditions = [];
-    if (start) conditions.push(`date >= '${start}'`);
-    if (end) conditions.push(`date <= '${end}'`);
-    if (conditions.length > 0) sql += " WHERE " + conditions.join(" AND ");
+    let sql =
+      "SELECT COUNT(*) as count, SUM(total) as revenue FROM sales WHERE 1=1";
+
+    if (start) sql += ` AND date >= '${start}'`;
+    if (end) sql += ` AND date <= '${end}'`;
+
+    // Aplicamos el filtro de tipo a las tarjetas también
+    sql += ` ${typeCondition}`;
+
     const res = db.prepare(sql).get();
     return { count: res.count || 0, revenue: res.revenue || 0 };
   };
@@ -59,55 +67,72 @@ export function getReports(
     cards["custom"] = { count: 0, revenue: 0 };
   }
 
+  // --- PREPARAR FILTROS COMUNES ---
   const { start: selectedStart, end: selectedEnd } = getPeriodRange(
     period,
     customRange
   );
-  let dateConditions = [];
-  if (selectedStart) dateConditions.push(`date >= '${selectedStart}'`);
-  if (selectedEnd) dateConditions.push(`date <= '${selectedEnd}'`);
-  let dateWhere = "";
-  if (dateConditions.length > 0)
-    dateWhere = "WHERE " + dateConditions.join(" AND ");
 
-  let fullConditions = [...dateConditions];
+  let baseConditions = [];
+  if (selectedStart) baseConditions.push(`date >= '${selectedStart}'`);
+  if (selectedEnd) baseConditions.push(`date <= '${selectedEnd}'`);
+
+  // Condición base solo fechas
+  const dateWhere =
+    baseConditions.length > 0
+      ? "WHERE " + baseConditions.join(" AND ")
+      : "WHERE 1=1";
+
+  // Condición completa (Fechas + Tipo)
+  let fullConditions = [...baseConditions];
   if (typeFilter !== "all") fullConditions.push(`type = '${typeFilter}'`);
-  let fullWhere = "";
-  if (fullConditions.length > 0)
-    fullWhere = "WHERE " + fullConditions.join(" AND ");
 
-  const channels = db
+  const fullWhere =
+    fullConditions.length > 0
+      ? "WHERE " + fullConditions.join(" AND ")
+      : "WHERE 1=1";
+
+  // 3. NUEVO: DESGLOSE POR MÉTODOS DE PAGO
+  const payments = db
     .prepare(
-      `SELECT type, COUNT(*) as count, SUM(total) as revenue FROM sales ${dateWhere} GROUP BY type`
+      `SELECT payment_method, COUNT(*) as count, SUM(total) as revenue 
+       FROM sales ${fullWhere} 
+       GROUP BY payment_method`
     )
     .all();
-  const channelData = {
-    local: channels.find((c) => c.type === "local") || { count: 0, revenue: 0 },
-    pedidosYa: channels.find((c) => c.type === "pedidos_ya") || {
+
+  const paymentData = {
+    efectivo: payments.find((p) => p.payment_method === "efectivo") || {
+      count: 0,
+      revenue: 0,
+    },
+    mercado_pago: payments.find((p) => p.payment_method === "mercado_pago") || {
       count: 0,
       revenue: 0,
     },
   };
 
+  // 4. RANKING (Top Productos)
   const presentations = db
     .prepare(
-      `SELECT presentation_name as name, SUM(quantity) as units, SUM(total) as revenue FROM sales ${fullWhere} GROUP BY presentation_name ORDER BY units DESC`
+      `SELECT presentation_name as name, SUM(quantity) as units, SUM(total) as revenue 
+       FROM sales ${fullWhere} 
+       GROUP BY presentation_name 
+       ORDER BY units DESC`
     )
     .all();
 
-  // --- LÓGICA DINÁMICA DE AGRUPACIÓN ---
+  // 5. TENDENCIAS (Gráfico Temporal)
   let isDaily = false;
   let isMonthly = false;
-  let isHourly = false; // Nueva bandera para el frontend
-  let timeFormat = "%H"; // Default: Horas (00-23)
+  let isHourly = false;
+  let timeFormat = "%H";
 
   if (period === "week") {
     if (isExpanded) {
-      // Semana Expandida: Detalle por Hora+Día
       isHourly = true;
       timeFormat = "%Y-%m-%d %H";
     } else {
-      // Semana Normal: Detalle por Día
       isDaily = true;
       timeFormat = "%Y-%m-%d";
     }
@@ -126,11 +151,9 @@ export function getReports(
 
         if (diffDays > 180) {
           if (isExpanded) {
-            // Rango Largo Expandido: Ver detalle diario
             isDaily = true;
             timeFormat = "%Y-%m-%d";
           } else {
-            // Rango Largo Normal: Ver resumen mensual
             isMonthly = true;
             timeFormat = "%Y-%m";
           }
@@ -142,22 +165,24 @@ export function getReports(
     }
   }
 
-  // Consulta de Tendencia con el formato dinámico
   const trend = db
     .prepare(
-      `SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total FROM sales ${fullWhere} GROUP BY label ORDER BY label ASC`
+      `SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total 
+       FROM sales ${fullWhere} 
+       GROUP BY label 
+       ORDER BY label ASC`
     )
     .all();
 
   return {
-    cards,
+    cards, // Ahora filtradas
     details: {
-      channels: channelData,
+      payments: paymentData, // Reemplaza a channels
       presentations,
       trend,
       isDaily,
       isMonthly,
-      isHourly, // Enviamos esto al frontend para saber cómo formatear el eje X
+      isHourly,
     },
   };
 }

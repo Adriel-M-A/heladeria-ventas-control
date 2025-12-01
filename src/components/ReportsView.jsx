@@ -3,17 +3,19 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart3,
   TrendingUp,
   Calendar,
   Layers,
-  PieChart,
+  Wallet,
   Clock,
   CalendarRange,
   Star,
   Maximize2,
   Minimize2,
+  ArrowRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -45,7 +47,6 @@ export default function ReportsView() {
       setLoading(true);
       try {
         if (window.electronAPI) {
-          // Pasamos isExpanded al backend
           const reportData = await window.electronAPI.getReports(
             period,
             customRange,
@@ -61,7 +62,7 @@ export default function ReportsView() {
       }
     };
     loadReports();
-  }, [period, customRange, activeType, isExpanded]); // Se recarga cuando cambia isExpanded
+  }, [period, customRange, activeType, isExpanded]);
 
   const handleDateChange = (e) => {
     const { name, value } = e.target;
@@ -70,22 +71,16 @@ export default function ReportsView() {
 
   const formatXAxis = (tick) => {
     if (!tick) return "";
-
-    // 1. Formato Hora Detallada (YYYY-MM-DD HH) - Para Semana Expandida
     if (tick.length > 10 && tick.includes(" ")) {
       const [datePart, hourPart] = tick.split(" ");
       const date = new Date(datePart + "T00:00:00");
       const dayName = date.toLocaleDateString("es-AR", { weekday: "short" });
-      return `${dayName} ${hourPart}:00`; // Ej: "Lun 14:00"
+      return `${dayName} ${hourPart}:00`;
     }
-
-    // 2. Formato Mensual (YYYY-MM)
     if (data?.details?.isMonthly) {
       const [year, month] = tick.split("-");
       return `${month}/${year}`;
     }
-
-    // 3. Formato Diario (YYYY-MM-DD)
     if (data?.details?.isDaily) {
       const date = new Date(tick + "T00:00:00");
       return date.toLocaleDateString("es-AR", {
@@ -93,8 +88,6 @@ export default function ReportsView() {
         month: "2-digit",
       });
     }
-
-    // 4. Formato Horario Simple (HH)
     return `${tick}:00`;
   };
 
@@ -116,46 +109,88 @@ export default function ReportsView() {
     },
   ];
 
-  const currentTotal = data?.cards[period] || { count: 0, revenue: 0 };
+  const totalPaymentRevenue =
+    (data?.details?.payments?.efectivo?.revenue || 0) +
+    (data?.details?.payments?.mercado_pago?.revenue || 0);
 
   return (
     <div className="space-y-6 duration-300 pb-8">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      {/* HEADER: TÍTULO + FILTRO CANAL + FECHAS */}
+      <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">
             Reportes y Estadísticas
           </h2>
           <p className="text-slate-500">
-            Análisis de ventas por período y presentación
+            Análisis de rendimiento financiero y operativo
           </p>
         </div>
 
-        {period === "custom" && (
-          <div className="flex items-end gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-            <div>
-              <Label className="text-xs text-slate-500 ml-1">Desde</Label>
-              <Input
-                type="date"
-                name="from"
-                value={customRange.from}
-                onChange={handleDateChange}
-                className="h-8 w-36 text-sm"
-              />
+        <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+          {/* SELECTOR DE CANAL */}
+          <Tabs
+            value={activeType}
+            onValueChange={setActiveType}
+            className="w-full sm:w-auto"
+          >
+            <TabsList className="grid w-full grid-cols-3 h-9 bg-slate-100 p-1 gap-1">
+              <TabsTrigger
+                value="all"
+                className="text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white transition-all"
+              >
+                Todos
+              </TabsTrigger>
+              <TabsTrigger
+                value="local"
+                className="text-xs data-[state=active]:bg-sale-local data-[state=active]:text-white transition-all"
+              >
+                Local
+              </TabsTrigger>
+              <TabsTrigger
+                value="pedidos_ya"
+                className="text-xs data-[state=active]:bg-sale-delivery data-[state=active]:text-white transition-all"
+              >
+                PedidosYa
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* SELECTOR DE RANGO (NUEVO DISEÑO) */}
+          {period === "custom" && (
+            <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4">
+              <div className="relative group">
+                <span className="absolute -top-2 left-2 bg-white px-1 text-[10px] font-semibold text-slate-400 group-hover:text-blue-600 transition-colors">
+                  Desde
+                </span>
+                <Input
+                  type="date"
+                  name="from"
+                  value={customRange.from}
+                  onChange={handleDateChange}
+                  className="h-9 w-36 text-xs border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all"
+                />
+              </div>
+
+              <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+              <div className="relative group">
+                <span className="absolute -top-2 left-2 bg-white px-1 text-[10px] font-semibold text-slate-400 group-hover:text-blue-600 transition-colors">
+                  Hasta
+                </span>
+                <Input
+                  type="date"
+                  name="to"
+                  value={customRange.to}
+                  onChange={handleDateChange}
+                  className="h-9 w-36 text-xs border-slate-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all"
+                />
+              </div>
             </div>
-            <div>
-              <Label className="text-xs text-slate-500 ml-1">Hasta</Label>
-              <Input
-                type="date"
-                name="to"
-                value={customRange.to}
-                onChange={handleDateChange}
-                className="h-8 w-36 text-sm"
-              />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
+      {/* TARJETAS KPI SUPERIORES */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {cardConfig.map((card) => {
           const stats = data?.cards[card.id] || { count: 0, revenue: 0 };
@@ -166,208 +201,142 @@ export default function ReportsView() {
               key={card.id}
               onClick={() => setPeriod(card.id)}
               className={cn(
-                "bg-white p-6 rounded-xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md",
+                "p-5 rounded-xl border cursor-pointer transition-all duration-200 shadow-sm relative overflow-hidden flex flex-col justify-between h-32 group bg-white",
                 isSelected
-                  ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/10"
-                  : "border-slate-200 hover:border-blue-300"
+                  ? "border-slate-300 ring-1 ring-slate-100 shadow-md"
+                  : "border-slate-200 hover:border-slate-300 hover:shadow-md"
               )}
             >
-              <div className="flex items-center gap-2 text-slate-500 mb-2">
-                {card.icon}
-                <span className="text-sm font-medium whitespace-nowrap">
-                  {card.label}
-                </span>
+              {/* GRUPO SUPERIOR: Header y Contador */}
+              <div>
+                <div className="flex items-center gap-2 text-slate-500 mb-1">
+                  {card.icon}
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    {card.label}
+                  </span>
+                </div>
+                <div className="text-3xl font-bold text-slate-900 leading-none">
+                  {stats.count}
+                </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900">
-                {stats.count}
+
+              {/* GRUPO INFERIOR: Monto (Alineado a la derecha, en el flujo) */}
+              <div className="text-right">
+                <div className="text-xl font-bold text-slate-600 truncate">
+                  $ {stats.revenue.toLocaleString("es-AR")}
+                </div>
               </div>
-              <div className="text-sm font-medium text-slate-500 mt-1 truncate">
-                $ {stats.revenue.toLocaleString("es-AR")}
-              </div>
+
+              {/* BORDE INFERIOR DE COLOR */}
+              {isSelected && (
+                <div
+                  className={cn(
+                    "absolute bottom-0 left-0 h-1.5 w-full",
+                    activeType === "local"
+                      ? "bg-sale-local"
+                      : activeType === "pedidos_ya"
+                      ? "bg-sale-delivery"
+                      : "bg-slate-800"
+                  )}
+                />
+              )}
             </div>
           );
         })}
       </div>
 
+      {/* FILA DE DETALLES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start transition-all duration-300">
-        {/* COLUMNA 1: VENTAS POR TIPO */}
+        {/* COLUMNA 1: MÉTODOS DE PAGO */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
-            <PieChart className="w-4 h-4 text-slate-500" />
+            <Wallet className="w-4 h-4 text-slate-500" />
             <div>
               <h3 className="text-slate-900 font-bold text-sm">
-                Ventas por Tipo
+                Métodos de Pago
               </h3>
-              <p className="text-slate-500 text-xs">Selecciona para filtrar</p>
+              <p className="text-slate-500 text-xs">Desglose de ingresos</p>
             </div>
           </div>
 
           <div className="p-6 space-y-4 flex-1">
-            <div
-              onClick={() => setActiveType("local")}
-              className={cn(
-                "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all duration-200 group relative overflow-hidden",
-                activeType === "local"
-                  ? "bg-sale-local text-white border-sale-local shadow-md transform scale-[1.02]"
-                  : "bg-sale-local/10 border-sale-local/20 hover:bg-sale-local/20"
-              )}
-            >
-              <div className="flex items-center gap-3 relative z-10">
-                <div
-                  className={cn(
-                    "w-3 h-3 rounded-full shadow-sm",
-                    activeType === "local" ? "bg-white" : "bg-sale-local"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "font-medium",
-                    activeType === "local" ? "text-white" : "text-slate-700"
-                  )}
-                >
-                  Local
-                </span>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-emerald-100 bg-emerald-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
+                <span className="font-medium text-slate-700">Efectivo</span>
               </div>
-              <div className="text-right relative z-10">
-                <div
-                  className={cn(
-                    "text-xl font-bold",
-                    activeType === "local" ? "text-white" : "text-sale-local"
-                  )}
-                >
-                  {data?.details.channels.local.count || 0}
+              <div className="text-right">
+                <div className="text-lg font-bold text-emerald-700">
+                  {data?.details.payments.efectivo.count || 0}
                 </div>
-                <div
-                  className={cn(
-                    "text-xs font-medium",
-                    activeType === "local" ? "text-blue-100" : "text-slate-500"
-                  )}
-                >
+                <div className="text-xs font-medium text-emerald-600/80">
                   ${" "}
-                  {data?.details.channels.local.revenue.toLocaleString(
+                  {data?.details.payments.efectivo.revenue.toLocaleString(
                     "es-AR"
                   ) || 0}
                 </div>
               </div>
             </div>
 
-            <div
-              onClick={() => setActiveType("pedidos_ya")}
-              className={cn(
-                "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all duration-200 group relative overflow-hidden",
-                activeType === "pedidos_ya"
-                  ? "bg-sale-delivery text-white border-sale-delivery shadow-md transform scale-[1.02]"
-                  : "bg-sale-delivery/10 border-sale-delivery/20 hover:bg-sale-delivery/20"
-              )}
-            >
-              <div className="flex items-center gap-3 relative z-10">
-                <div
-                  className={cn(
-                    "w-3 h-3 rounded-full shadow-sm",
-                    activeType === "pedidos_ya"
-                      ? "bg-white"
-                      : "bg-sale-delivery"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "font-medium",
-                    activeType === "pedidos_ya"
-                      ? "text-white"
-                      : "text-slate-700"
-                  )}
-                >
-                  PedidosYa
-                </span>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-blue-100 bg-blue-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm" />
+                <span className="font-medium text-slate-700">Mercado Pago</span>
               </div>
-              <div className="text-right relative z-10">
-                <div
-                  className={cn(
-                    "text-xl font-bold",
-                    activeType === "pedidos_ya"
-                      ? "text-white"
-                      : "text-sale-delivery"
-                  )}
-                >
-                  {data?.details.channels.pedidosYa.count || 0}
+              <div className="text-right">
+                <div className="text-lg font-bold text-blue-700">
+                  {data?.details.payments.mercado_pago.count || 0}
                 </div>
-                <div
-                  className={cn(
-                    "text-xs font-medium",
-                    activeType === "pedidos_ya"
-                      ? "text-rose-100"
-                      : "text-slate-500"
-                  )}
-                >
+                <div className="text-xs font-medium text-blue-600/80">
                   ${" "}
-                  {data?.details.channels.pedidosYa.revenue.toLocaleString(
+                  {data?.details.payments.mercado_pago.revenue.toLocaleString(
                     "es-AR"
                   ) || 0}
                 </div>
               </div>
             </div>
 
-            <div
-              onClick={() => setActiveType("all")}
-              className={cn(
-                "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all duration-200 mt-auto relative overflow-hidden",
-                activeType === "all"
-                  ? "bg-slate-800 text-white border-slate-900 shadow-md transform scale-[1.02]"
-                  : "bg-slate-100 border-slate-200 hover:bg-slate-200"
-              )}
-            >
-              <div className="flex items-center gap-3 relative z-10">
-                <div
-                  className={cn(
-                    "w-3 h-3 rounded-full shadow-sm",
-                    activeType === "all" ? "bg-white" : "bg-slate-600"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "font-bold",
-                    activeType === "all" ? "text-white" : "text-slate-900"
-                  )}
-                >
-                  Total General
-                </span>
-              </div>
-              <div className="text-right relative z-10">
-                <div
-                  className={cn(
-                    "text-xl font-bold",
-                    activeType === "all" ? "text-white" : "text-slate-900"
-                  )}
-                >
-                  {currentTotal.count}
+            {totalPaymentRevenue > 0 && (
+              <div className="mt-4">
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-500"
+                    style={{
+                      width: `${
+                        (data.details.payments.efectivo.revenue /
+                          totalPaymentRevenue) *
+                        100
+                      }%`,
+                    }}
+                  />
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-500"
+                    style={{
+                      width: `${
+                        (data.details.payments.mercado_pago.revenue /
+                          totalPaymentRevenue) *
+                        100
+                      }%`,
+                    }}
+                  />
                 </div>
-                <div
-                  className={cn(
-                    "text-xs font-bold",
-                    activeType === "all" ? "text-slate-300" : "text-slate-600"
-                  )}
-                >
-                  $ {currentTotal.revenue.toLocaleString("es-AR")}
+                <div className="flex justify-between mt-1 text-[10px] text-slate-400 font-medium uppercase">
+                  <span>Efectivo</span>
+                  <span>Mercado Pago</span>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </Card>
 
-        {/* COLUMNA 2: RANKING (Se oculta si está expandido) */}
+        {/* COLUMNA 2: RANKING */}
         {!isExpanded && (
           <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
               <TrendingUp className="w-4 h-4 text-slate-500" />
               <div>
                 <h3 className="text-slate-900 font-bold text-sm">Ranking</h3>
-                <p className="text-slate-500 text-xs">
-                  {activeType === "all"
-                    ? "Todos los canales"
-                    : activeType === "local"
-                    ? "Solo Local"
-                    : "Solo PedidosYa"}
-                </p>
+                <p className="text-slate-500 text-xs">Productos más vendidos</p>
               </div>
             </div>
 
@@ -422,7 +391,7 @@ export default function ReportsView() {
           </Card>
         )}
 
-        {/* COLUMNA 3: TENDENCIA (Dinámico) */}
+        {/* COLUMNA 3: TENDENCIA */}
         <Card
           className={cn(
             "border-slate-200 shadow-sm bg-white h-full flex flex-col p-0 overflow-hidden transition-all duration-300",
@@ -499,7 +468,6 @@ export default function ReportsView() {
                     "Ingresos",
                   ]}
                   labelFormatter={(label) => {
-                    // Reutilizamos la lógica de formato para el Tooltip
                     if (label.length > 10 && label.includes(" ")) {
                       const [datePart, hourPart] = label.split(" ");
                       const date = new Date(datePart + "T00:00:00");
