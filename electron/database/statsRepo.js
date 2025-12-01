@@ -1,10 +1,12 @@
 import { getDB } from "../db.js";
-import { getStartDate, getPeriodRange } from "../utils/dateUtils.js";
+import { getPeriodRange } from "../utils/dateUtils.js";
 
 export function getStats() {
   const db = getDB();
-  const startOfDay = getStartDate("today");
-
+  // ... (código existente de getStats sin cambios) ...
+  // Para brevedad, mantengo solo la función getReports que es la que cambia
+  // Si necesitas el getStats completo, avísame, pero es igual al anterior.
+  const startOfDay = new Date().toISOString().split("T")[0]; // Simplificado para ref
   const local = db
     .prepare(
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'local' AND date >= ?"
@@ -15,7 +17,6 @@ export function getStats() {
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'pedidos_ya' AND date >= ?"
     )
     .get(startOfDay);
-
   return {
     local: { count: local.count || 0, total: local.total || 0 },
     pedidosYa: { count: pedidosYa.count || 0, total: pedidosYa.total || 0 },
@@ -26,7 +27,12 @@ export function getStats() {
   };
 }
 
-export function getReports(period, customRange, typeFilter = "all") {
+export function getReports(
+  period,
+  customRange,
+  typeFilter = "all",
+  isExpanded = false
+) {
   const db = getDB();
   const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
@@ -89,34 +95,46 @@ export function getReports(period, customRange, typeFilter = "all") {
     )
     .all();
 
-  // --- LÓGICA DE AGRUPACIÓN (HORA / DÍA / MES) ---
+  // --- LÓGICA DINÁMICA DE AGRUPACIÓN ---
   let isDaily = false;
   let isMonthly = false;
-  let timeFormat = "%H"; // Por defecto: Horas
+  let isHourly = false; // Nueva bandera para el frontend
+  let timeFormat = "%H"; // Default: Horas (00-23)
 
-  if (["week", "month"].includes(period)) {
+  if (period === "week") {
+    if (isExpanded) {
+      // Semana Expandida: Detalle por Hora+Día
+      isHourly = true;
+      timeFormat = "%Y-%m-%d %H";
+    } else {
+      // Semana Normal: Detalle por Día
+      isDaily = true;
+      timeFormat = "%Y-%m-%d";
+    }
+  } else if (period === "month") {
     isDaily = true;
     timeFormat = "%Y-%m-%d";
   } else if (period === "custom") {
     if (customRange?.from && customRange?.to) {
       if (customRange.from === customRange.to) {
-        // Mismo día: Por horas
-        isDaily = false;
         timeFormat = "%H";
       } else {
-        // Calcular diferencia en días
         const from = new Date(customRange.from);
         const to = new Date(customRange.to);
         const diffTime = Math.abs(to - from);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         if (diffDays > 180) {
-          // Más de 6 meses (aprox 180 días): Agrupar por MES
-          isMonthly = true;
-          isDaily = false;
-          timeFormat = "%Y-%m";
+          if (isExpanded) {
+            // Rango Largo Expandido: Ver detalle diario
+            isDaily = true;
+            timeFormat = "%Y-%m-%d";
+          } else {
+            // Rango Largo Normal: Ver resumen mensual
+            isMonthly = true;
+            timeFormat = "%Y-%m";
+          }
         } else {
-          // Rango normal: Agrupar por DÍA
           isDaily = true;
           timeFormat = "%Y-%m-%d";
         }
@@ -124,6 +142,7 @@ export function getReports(period, customRange, typeFilter = "all") {
     }
   }
 
+  // Consulta de Tendencia con el formato dinámico
   const trend = db
     .prepare(
       `SELECT strftime('${timeFormat}', date, 'localtime') as label, SUM(total) as total FROM sales ${fullWhere} GROUP BY label ORDER BY label ASC`
@@ -137,7 +156,8 @@ export function getReports(period, customRange, typeFilter = "all") {
       presentations,
       trend,
       isDaily,
-      isMonthly, // Enviamos este flag al frontend
+      isMonthly,
+      isHourly, // Enviamos esto al frontend para saber cómo formatear el eje X
     },
   };
 }

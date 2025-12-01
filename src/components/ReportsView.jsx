@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   BarChart3,
   TrendingUp,
@@ -11,6 +12,8 @@ import {
   Clock,
   CalendarRange,
   Star,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import {
   BarChart,
@@ -22,11 +25,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import SalesTable from "./SalesTable"; // <--- RECUPERADO: Importación de la tabla
+import SalesTable from "./SalesTable";
 
 export default function ReportsView() {
   const [period, setPeriod] = useState("today");
   const [activeType, setActiveType] = useState("all");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const [customRange, setCustomRange] = useState({
     from: new Date().toISOString().split("T")[0],
@@ -41,10 +45,12 @@ export default function ReportsView() {
       setLoading(true);
       try {
         if (window.electronAPI) {
+          // Pasamos isExpanded al backend
           const reportData = await window.electronAPI.getReports(
             period,
             customRange,
-            activeType
+            activeType,
+            isExpanded
           );
           setData(reportData);
         }
@@ -55,29 +61,40 @@ export default function ReportsView() {
       }
     };
     loadReports();
-  }, [period, customRange, activeType]);
+  }, [period, customRange, activeType, isExpanded]); // Se recarga cuando cambia isExpanded
 
   const handleDateChange = (e) => {
     const { name, value } = e.target;
     setCustomRange((prev) => ({ ...prev, [name]: value }));
   };
 
-  // --- LÓGICA DE FORMATEO (Incluye la mejora mensual) ---
   const formatXAxis = (tick) => {
+    if (!tick) return "";
+
+    // 1. Formato Hora Detallada (YYYY-MM-DD HH) - Para Semana Expandida
+    if (tick.length > 10 && tick.includes(" ")) {
+      const [datePart, hourPart] = tick.split(" ");
+      const date = new Date(datePart + "T00:00:00");
+      const dayName = date.toLocaleDateString("es-AR", { weekday: "short" });
+      return `${dayName} ${hourPart}:00`; // Ej: "Lun 14:00"
+    }
+
+    // 2. Formato Mensual (YYYY-MM)
     if (data?.details?.isMonthly) {
-      // Formato Mensual: "MM/AAAA"
       const [year, month] = tick.split("-");
       return `${month}/${year}`;
     }
+
+    // 3. Formato Diario (YYYY-MM-DD)
     if (data?.details?.isDaily) {
-      // Formato Diario: "DD/MM"
       const date = new Date(tick + "T00:00:00");
       return date.toLocaleDateString("es-AR", {
         day: "2-digit",
         month: "2-digit",
       });
     }
-    // Formato Horario: "HH:00"
+
+    // 4. Formato Horario Simple (HH)
     return `${tick}:00`;
   };
 
@@ -172,7 +189,7 @@ export default function ReportsView() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start transition-all duration-300">
         {/* COLUMNA 1: VENTAS POR TIPO */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
@@ -337,88 +354,110 @@ export default function ReportsView() {
           </div>
         </Card>
 
-        {/* COLUMNA 2: RANKING */}
-        <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
-            <TrendingUp className="w-4 h-4 text-slate-500" />
-            <div>
-              <h3 className="text-slate-900 font-bold text-sm">Ranking</h3>
-              <p className="text-slate-500 text-xs">
-                {activeType === "all"
-                  ? "Todos los canales"
-                  : activeType === "local"
-                  ? "Solo Local"
-                  : "Solo PedidosYa"}
-              </p>
+        {/* COLUMNA 2: RANKING (Se oculta si está expandido) */}
+        {!isExpanded && (
+          <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
+              <TrendingUp className="w-4 h-4 text-slate-500" />
+              <div>
+                <h3 className="text-slate-900 font-bold text-sm">Ranking</h3>
+                <p className="text-slate-500 text-xs">
+                  {activeType === "all"
+                    ? "Todos los canales"
+                    : activeType === "local"
+                    ? "Solo Local"
+                    : "Solo PedidosYa"}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="p-0 flex-1 overflow-auto max-h-[400px]">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-white border-b border-slate-100 sticky top-0 z-10">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Nombre</th>
-                  <th className="px-4 py-3 font-medium text-center">Unid.</th>
-                  <th className="px-4 py-3 font-medium text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data?.details.presentations.length > 0 ? (
-                  data.details.presentations.map((item, index) => (
-                    <tr
-                      key={item.name}
-                      className="hover:bg-slate-50/50 transition-colors"
-                    >
-                      <td className="px-4 py-3 font-medium text-slate-700 flex items-center gap-2">
-                        {index === 0 && (
-                          <Star className="w-3 h-3 text-amber-500 fill-current shrink-0" />
-                        )}
-                        <span
-                          className="truncate max-w-[100px]"
-                          title={item.name}
-                        >
-                          {item.name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center text-slate-600">
-                        {item.units}
-                      </td>
-                      <td className="px-4 py-3 text-right font-bold text-slate-900">
-                        ${item.revenue.toLocaleString("es-AR")}
+            <div className="p-0 flex-1 overflow-auto max-h-[400px]">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-white border-b border-slate-100 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Nombre</th>
+                    <th className="px-4 py-3 font-medium text-center">Unid.</th>
+                    <th className="px-4 py-3 font-medium text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {data?.details.presentations.length > 0 ? (
+                    data.details.presentations.map((item, index) => (
+                      <tr
+                        key={item.name}
+                        className="hover:bg-slate-50/50 transition-colors"
+                      >
+                        <td className="px-4 py-3 font-medium text-slate-700 flex items-center gap-2">
+                          {index === 0 && (
+                            <Star className="w-3 h-3 text-amber-500 fill-current shrink-0" />
+                          )}
+                          <span
+                            className="truncate max-w-[100px]"
+                            title={item.name}
+                          >
+                            {item.name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center text-slate-600">
+                          {item.units}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-900">
+                          ${item.revenue.toLocaleString("es-AR")}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="px-4 py-8 text-center text-slate-400"
+                      >
+                        Sin datos para este filtro.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-8 text-center text-slate-400"
-                    >
-                      Sin datos para este filtro.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* COLUMNA 3: TENDENCIA (CORREGIDO) */}
-        <Card className="border-slate-200 shadow-sm bg-white h-full flex flex-col p-0 overflow-hidden">
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
-            <TrendingUp className="w-4 h-4 text-blue-600" />
-            <div>
-              <h3 className="text-slate-900 font-bold text-sm">Tendencia</h3>
-              <p className="text-slate-500 text-xs">
-                Ingresos (
-                {data?.details?.isMonthly
-                  ? "mensual"
-                  : data?.details?.isDaily
-                  ? "diario"
-                  : "horario"}
-                )
-              </p>
+                  )}
+                </tbody>
+              </table>
             </div>
+          </Card>
+        )}
+
+        {/* COLUMNA 3: TENDENCIA (Dinámico) */}
+        <Card
+          className={cn(
+            "border-slate-200 shadow-sm bg-white h-full flex flex-col p-0 overflow-hidden transition-all duration-300",
+            isExpanded ? "lg:col-span-2" : "lg:col-span-1"
+          )}
+        >
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-blue-600" />
+              <div>
+                <h3 className="text-slate-900 font-bold text-sm">Tendencia</h3>
+                <p className="text-slate-500 text-xs">
+                  Ingresos (
+                  {data?.details?.isHourly
+                    ? "por hora"
+                    : data?.details?.isMonthly
+                    ? "mensual"
+                    : "diario"}
+                  )
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-white"
+              onClick={() => setIsExpanded(!isExpanded)}
+              title={isExpanded ? "Reducir vista" : "Expandir gráfico"}
+            >
+              {isExpanded ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </Button>
           </div>
 
           <div className="relative w-full h-[300px] p-4">
@@ -460,6 +499,12 @@ export default function ReportsView() {
                     "Ingresos",
                   ]}
                   labelFormatter={(label) => {
+                    // Reutilizamos la lógica de formato para el Tooltip
+                    if (label.length > 10 && label.includes(" ")) {
+                      const [datePart, hourPart] = label.split(" ");
+                      const date = new Date(datePart + "T00:00:00");
+                      return `${date.toLocaleDateString()} ${hourPart}:00`;
+                    }
                     if (data?.details?.isMonthly) {
                       const date = new Date(label + "-02T00:00:00");
                       return date.toLocaleDateString("es-AR", {
@@ -491,7 +536,6 @@ export default function ReportsView() {
         </Card>
       </div>
 
-      {/* --- SECCIÓN NUEVA: TABLA DE DETALLE DE VENTAS (RECUPERADA) --- */}
       <div className="h-[400px]">
         <SalesTable
           type={activeType}

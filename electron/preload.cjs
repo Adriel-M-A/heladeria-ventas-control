@@ -8,7 +8,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   deletePresentation: (id) => ipcRenderer.invoke("delete-presentation", id),
 
   // --- VENTAS ---
-  // AHORA RECIBE period Y customRange
   getSales: (type, page, pageSize, period, customRange) =>
     ipcRenderer.invoke("get-sales", type, page, pageSize, period, customRange),
   addSale: (data) => ipcRenderer.invoke("add-sale", data),
@@ -16,8 +15,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // --- ESTADÍSTICAS Y REPORTES ---
   getStats: () => ipcRenderer.invoke("get-stats"),
-  getReports: (period, customRange, typeFilter) =>
-    ipcRenderer.invoke("get-reports", period, customRange, typeFilter),
+  // AHORA RECIBE isExpanded
+  getReports: (period, customRange, typeFilter, isExpanded) =>
+    ipcRenderer.invoke(
+      "get-reports",
+      period,
+      customRange,
+      typeFilter,
+      isExpanded
+    ),
 
   // --- SISTEMA (Backup/Restore) ---
   backupDB: () => ipcRenderer.invoke("backup-db"),
