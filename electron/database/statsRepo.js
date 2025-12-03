@@ -3,13 +3,15 @@ import { getPeriodRange } from "../utils/dateUtils.js";
 
 export function getStats() {
   const db = getDB();
-  const startOfDay = new Date().toISOString().split("T")[0];
+
+  const { start: startOfDay } = getPeriodRange("today");
 
   const local = db
     .prepare(
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'local' AND date >= ?"
     )
     .get(startOfDay);
+
   const pedidosYa = db
     .prepare(
       "SELECT COUNT(*) as count, SUM(total) as total FROM sales WHERE type = 'pedidos_ya' AND date >= ?"
@@ -36,11 +38,9 @@ export function getReports(
   const cardPeriods = ["today", "yesterday", "week", "month"];
   const cards = {};
 
-  // 1. CONDICIÓN GLOBAL DE TIPO (Para filtrar todo)
   const typeCondition =
     typeFilter !== "all" ? `AND type = '${typeFilter}'` : "";
 
-  // 2. QUERY TOTALES (Tarjetas de arriba) - Ahora aceptan filtro
   const queryTotal = (start, end) => {
     let sql =
       "SELECT COUNT(*) as count, SUM(total) as revenue FROM sales WHERE 1=1";
@@ -48,7 +48,6 @@ export function getReports(
     if (start) sql += ` AND date >= '${start}'`;
     if (end) sql += ` AND date <= '${end}'`;
 
-    // Aplicamos el filtro de tipo a las tarjetas también
     sql += ` ${typeCondition}`;
 
     const res = db.prepare(sql).get();
@@ -67,7 +66,6 @@ export function getReports(
     cards["custom"] = { count: 0, revenue: 0 };
   }
 
-  // --- PREPARAR FILTROS COMUNES ---
   const { start: selectedStart, end: selectedEnd } = getPeriodRange(
     period,
     customRange
@@ -77,14 +75,7 @@ export function getReports(
   if (selectedStart) baseConditions.push(`date >= '${selectedStart}'`);
   if (selectedEnd) baseConditions.push(`date <= '${selectedEnd}'`);
 
-  // Condición base solo fechas
-  const dateWhere =
-    baseConditions.length > 0
-      ? "WHERE " + baseConditions.join(" AND ")
-      : "WHERE 1=1";
-
-  // Condición completa (Fechas + Tipo)
-  let fullConditions = [...baseConditions];
+  const fullConditions = [...baseConditions];
   if (typeFilter !== "all") fullConditions.push(`type = '${typeFilter}'`);
 
   const fullWhere =
@@ -92,7 +83,6 @@ export function getReports(
       ? "WHERE " + fullConditions.join(" AND ")
       : "WHERE 1=1";
 
-  // 3. NUEVO: DESGLOSE POR MÉTODOS DE PAGO
   const payments = db
     .prepare(
       `SELECT payment_method, COUNT(*) as count, SUM(total) as revenue 
@@ -112,7 +102,6 @@ export function getReports(
     },
   };
 
-  // 4. RANKING (Top Productos)
   const presentations = db
     .prepare(
       `SELECT presentation_name as name, SUM(quantity) as units, SUM(total) as revenue 
@@ -122,7 +111,6 @@ export function getReports(
     )
     .all();
 
-  // 5. TENDENCIAS (Gráfico Temporal)
   let isDaily = false;
   let isMonthly = false;
   let isHourly = false;
@@ -175,9 +163,9 @@ export function getReports(
     .all();
 
   return {
-    cards, // Ahora filtradas
+    cards,
     details: {
-      payments: paymentData, // Reemplaza a channels
+      payments: paymentData,
       presentations,
       trend,
       isDaily,
