@@ -10,8 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn, formatError, getToday } from "@/lib/utils";
+import { cn, formatError } from "@/lib/utils";
 import { Tag } from "lucide-react";
+import { calculatePriceWithPromotions } from "@/lib/promotionEngine"; // Importamos el motor
 
 export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
   const [presentations, setPresentations] = useState([]);
@@ -47,93 +48,21 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     loadData();
   }, []);
 
+  // Efecto: Recalcular cuando cambian los inputs
   useEffect(() => {
-    calculateTotal();
-  }, [formData, presentations, promotions]);
-
-  const calculateTotal = () => {
     const selectedPresentation = presentations.find(
       (p) => p.id.toString() === formData.presentationId
     );
-    if (!selectedPresentation) {
-      setCalculation({ total: 0, baseTotal: 0, appliedPromo: null });
-      return;
-    }
 
-    const price =
-      formData.type === "pedidos_ya"
-        ? selectedPresentation.price_delivery
-        : selectedPresentation.price_local;
-
-    const qty = parseInt(formData.quantity);
-    const baseTotal = price * qty;
-
-    const todayStr = getToday();
-    const dayOfWeek = new Date().getDay();
-
-    const validPromos = promotions.filter((p) => {
-      if (p.presentation_id !== selectedPresentation.id) return false;
-      if (p.is_active !== 1) return false;
-      if (qty < p.min_quantity) return false;
-
-      if (p.channel && p.channel !== "all" && p.channel !== formData.type)
-        return false;
-
-      if (p.start_date && todayStr < p.start_date) return false;
-      if (p.end_date && todayStr > p.end_date) return false;
-
-      if (p.active_days && p.active_days !== "") {
-        const activeDaysList = p.active_days.split(",").map(Number);
-        if (!activeDaysList.includes(dayOfWeek)) return false;
-      }
-
-      return true;
+    const result = calculatePriceWithPromotions({
+      presentation: selectedPresentation,
+      promotions: promotions,
+      quantity: parseInt(formData.quantity) || 0,
+      channel: formData.type,
     });
 
-    validPromos.sort((a, b) => {
-      const aHasDate = !!(a.start_date || a.end_date);
-      const bHasDate = !!(b.start_date || b.end_date);
-
-      if (aHasDate && !bHasDate) return -1;
-      if (!aHasDate && bHasDate) return 1;
-      return 0;
-    });
-
-    const applicablePromo = validPromos.length > 0 ? validPromos[0] : null;
-
-    let finalTotal = baseTotal;
-
-    if (applicablePromo) {
-      const packSize = applicablePromo.min_quantity;
-      const numPacks = Math.floor(qty / packSize);
-      const remainder = qty % packSize;
-
-      if (applicablePromo.discount_type === "fixed_price") {
-        const comboPrice = applicablePromo.discount_value;
-        finalTotal = numPacks * comboPrice + remainder * price;
-      } else if (applicablePromo.discount_type === "percentage") {
-        const packBasePrice = packSize * price;
-        const packDiscounted =
-          packBasePrice * (1 - applicablePromo.discount_value / 100);
-        finalTotal = numPacks * packDiscounted + remainder * price;
-      } else if (applicablePromo.discount_type === "amount_off") {
-        const packBasePrice = packSize * price;
-        const packDiscounted = Math.max(
-          0,
-          packBasePrice - applicablePromo.discount_value
-        );
-        finalTotal = numPacks * packDiscounted + remainder * price;
-      }
-    }
-
-    finalTotal = Math.max(0, finalTotal);
-
-    setCalculation({
-      total: finalTotal,
-      baseTotal: baseTotal,
-      appliedPromo: applicablePromo,
-    });
-  };
+    setCalculation(result);
+  }, [formData, presentations, promotions]);
 
   const handleRegister = async () => {
     const selectedPresentation = presentations.find(
@@ -156,7 +85,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       price_base: effectiveUnitPrice,
       quantity: qty,
       total: calculation.total,
-      date: new Date().toISOString(),
+      date: new Date().toISOString(), // Se guarda en UTC para ordenamiento global
       payment_method: formData.paymentMethod,
     };
 
