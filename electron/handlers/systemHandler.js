@@ -6,11 +6,12 @@ import { backupDB, closeDB, connectDB } from "../db.js";
 
 export function setupSystemHandlers() {
   handleIpc("backup-db", async () => {
+    // CORRECCIÓN: Usamos fecha local para el nombre del archivo
+    const todayLocal = new Date().toLocaleDateString("sv-SE");
+
     const { filePath } = await dialog.showSaveDialog({
       title: "Guardar Copia de Seguridad",
-      defaultPath: `heladeria-backup-${new Date()
-        .toISOString()
-        .slice(0, 10)}.db`,
+      defaultPath: `heladeria-backup-${todayLocal}.db`,
       filters: [{ name: "SQLite Database", extensions: ["db"] }],
     });
 
@@ -31,30 +32,25 @@ export function setupSystemHandlers() {
 
     const backupFile = filePaths[0];
 
-    // 1. Cerrar conexión
+    // 1. Cerrar conexión para liberar el archivo
     closeDB();
 
-    const currentDbPath = app.isPackaged
-      ? path.join(app.getPath("userData"), "heladeria.db")
-      : path.join(app.getPath("userData"), "..", "heladeria.db"); // Ajuste path dev según estructura
-
-    // En desarrollo el path suele ser diferente, asegúrate de que db.js y aquí usen la misma lógica o exporta dbPath.
-    // Para simplificar y evitar errores de path en dev, asumimos que db.js gestiona el path internamente
-    // pero aquí necesitamos sobreescribirlo.
-    // MEJOR OPCIÓN: Delegar la ruta a una constante compartida si fuera necesario,
-    // pero por ahora usaremos la misma lógica que tenías en main.js:
+    // 2. Definir la ruta destino correctamente según el entorno
     const __dirname = path.resolve(); // En ESM root
     const targetPath = app.isPackaged
       ? path.join(app.getPath("userData"), "heladeria.db")
       : path.join(__dirname, "heladeria.db");
 
     try {
+      // 3. Sobrescribir el archivo de base de datos
       fs.copyFileSync(backupFile, targetPath);
+
+      // 4. Reconectar y recargar la interfaz
       connectDB();
       BrowserWindow.getAllWindows().forEach((win) => win.reload());
       return { success: true };
     } catch (error) {
-      connectDB(); // Intentar reconectar si falla
+      connectDB(); // Intentar reconectar si falla para no dejar la app rota
       throw new Error("No se pudo restaurar: " + error.message);
     }
   });

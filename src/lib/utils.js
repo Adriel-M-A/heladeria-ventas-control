@@ -7,10 +7,11 @@ export function cn(...inputs) {
 
 export function formatError(error) {
   if (!error) return "Ocurrió un error desconocido";
-
   const message = error.message || error.toString();
-
-  // Elimina el prefijo técnico que Electron agrega automáticamente:
-  // "Error invoking remote method 'nombre-metodo': Error: Mensaje real"
   return message.replace(/^Error invoking remote method '[^']+': Error: /, "");
+}
+
+export function getToday() {
+  const now = new Date();
+  return now.toLocaleDateString("sv-SE");
 }

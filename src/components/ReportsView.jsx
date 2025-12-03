@@ -26,7 +26,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { cn } from "@/lib/utils";
+import { cn, getToday } from "@/lib/utils";
 import SalesTable from "./SalesTable";
 
 export default function ReportsView() {
@@ -35,8 +35,8 @@ export default function ReportsView() {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const [customRange, setCustomRange] = useState({
-    from: new Date().toISOString().split("T")[0],
-    to: new Date().toISOString().split("T")[0],
+    from: getToday(),
+    to: getToday(),
   });
 
   const [data, setData] = useState(null);
@@ -115,7 +115,6 @@ export default function ReportsView() {
 
   return (
     <div className="space-y-6 duration-300 pb-8">
-      {/* HEADER: TÍTULO + FILTRO CANAL + FECHAS */}
       <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -127,7 +126,6 @@ export default function ReportsView() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
-          {/* SELECTOR DE CANAL */}
           <Tabs
             value={activeType}
             onValueChange={setActiveType}
@@ -155,7 +153,6 @@ export default function ReportsView() {
             </TabsList>
           </Tabs>
 
-          {/* SELECTOR DE RANGO (NUEVO DISEÑO) */}
           {period === "custom" && (
             <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4">
               <div className="relative group">
@@ -190,7 +187,6 @@ export default function ReportsView() {
         </div>
       </div>
 
-      {/* TARJETAS KPI SUPERIORES */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {cardConfig.map((card) => {
           const stats = data?.cards[card.id] || { count: 0, revenue: 0 };
@@ -207,7 +203,6 @@ export default function ReportsView() {
                   : "border-slate-200 hover:border-slate-300 hover:shadow-md"
               )}
             >
-              {/* GRUPO SUPERIOR: Header y Contador */}
               <div>
                 <div className="flex items-center gap-2 text-slate-500 mb-1">
                   {card.icon}
@@ -220,14 +215,12 @@ export default function ReportsView() {
                 </div>
               </div>
 
-              {/* GRUPO INFERIOR: Monto (Alineado a la derecha, en el flujo) */}
               <div className="text-right">
                 <div className="text-xl font-bold text-slate-600 truncate">
                   $ {stats.revenue.toLocaleString("es-AR")}
                 </div>
               </div>
 
-              {/* BORDE INFERIOR DE COLOR */}
               {isSelected && (
                 <div
                   className={cn(
@@ -245,9 +238,7 @@ export default function ReportsView() {
         })}
       </div>
 
-      {/* FILA DE DETALLES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start transition-all duration-300">
-        {/* COLUMNA 1: MÉTODOS DE PAGO */}
         <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
             <Wallet className="w-4 h-4 text-slate-500" />
@@ -329,7 +320,6 @@ export default function ReportsView() {
           </div>
         </Card>
 
-        {/* COLUMNA 2: RANKING */}
         {!isExpanded && (
           <Card className="overflow-hidden border-slate-200 shadow-sm bg-white h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2 shrink-0">
@@ -391,7 +381,6 @@ export default function ReportsView() {
           </Card>
         )}
 
-        {/* COLUMNA 3: TENDENCIA */}
         <Card
           className={cn(
             "border-slate-200 shadow-sm bg-white h-full flex flex-col p-0 overflow-hidden transition-all duration-300",

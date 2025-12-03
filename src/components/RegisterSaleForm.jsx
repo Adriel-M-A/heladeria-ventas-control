@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn, formatError } from "@/lib/utils";
+import { cn, formatError, getToday } from "@/lib/utils";
 import { Tag } from "lucide-react";
 
 export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
@@ -68,9 +68,8 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     const qty = parseInt(formData.quantity);
     const baseTotal = price * qty;
 
-    const now = new Date();
-    const todayStr = now.toLocaleDateString("en-CA");
-    const dayOfWeek = now.getDay();
+    const todayStr = getToday();
+    const dayOfWeek = new Date().getDay();
 
     const validPromos = promotions.filter((p) => {
       if (p.presentation_id !== selectedPresentation.id) return false;

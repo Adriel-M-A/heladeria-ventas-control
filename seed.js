@@ -57,7 +57,6 @@ db.exec(`
   );
 `);
 
-// Versión actualizada para coincidir con la migración 7
 db.pragma("user_version = 7");
 console.log("✅ Versión de base de datos actualizada a 7.");
 
@@ -100,10 +99,13 @@ insertPromo.run(
   1
 );
 
-const todayDate = new Date().toISOString().split("T")[0];
-const nextWeek = new Date();
+const now = new Date();
+const todayDate = now.toLocaleDateString("sv-SE");
+
+const nextWeek = new Date(now);
 nextWeek.setDate(nextWeek.getDate() + 7);
-const nextWeekStr = nextWeek.toISOString().split("T")[0];
+const nextWeekStr = nextWeek.toLocaleDateString("sv-SE");
+
 insertPromo.run(
   "Semana del Kilo",
   productsMap["1 Kilo"],
