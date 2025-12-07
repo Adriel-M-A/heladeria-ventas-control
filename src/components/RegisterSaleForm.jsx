@@ -10,9 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { cn, formatError } from "@/lib/utils";
 import { Tag } from "lucide-react";
-import { calculatePriceWithPromotions } from "@/lib/promotionEngine"; // Importamos el motor
+import { calculatePriceWithPromotions } from "@/lib/promotionEngine";
 
 export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
   const [presentations, setPresentations] = useState([]);
@@ -29,6 +30,8 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     baseTotal: 0,
     appliedPromo: null,
   });
+
+  const [manualTotal, setManualTotal] = useState(null);
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -48,7 +51,6 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     loadData();
   }, []);
 
-  // Efecto: Recalcular cuando cambian los inputs
   useEffect(() => {
     const selectedPresentation = presentations.find(
       (p) => p.id.toString() === formData.presentationId
@@ -62,6 +64,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     });
 
     setCalculation(result);
+    setManualTotal(null);
   }, [formData, presentations, promotions]);
 
   const handleRegister = async () => {
@@ -70,22 +73,26 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
     );
     if (!selectedPresentation || !window.electronAPI) return;
 
-    if (calculation.total <= 0 && calculation.baseTotal <= 0) {
+    const finalTotal =
+      manualTotal !== null && manualTotal !== ""
+        ? Number(manualTotal)
+        : calculation.total;
+
+    if (finalTotal <= 0 && calculation.baseTotal <= 0) {
       toast.error("El precio total no puede ser 0");
       return;
     }
 
     const qty = parseInt(formData.quantity);
-    const effectiveUnitPrice =
-      Math.round((calculation.total / qty) * 100) / 100;
+    const effectiveUnitPrice = Math.round((finalTotal / qty) * 100) / 100;
 
     const saleData = {
       type: formData.type,
       presentation_name: selectedPresentation.name,
       price_base: effectiveUnitPrice,
       quantity: qty,
-      total: calculation.total,
-      date: new Date().toISOString(), // Se guarda en UTC para ordenamiento global
+      total: finalTotal,
+      date: new Date().toISOString(),
       payment_method: formData.paymentMethod,
     };
 
@@ -96,11 +103,12 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
       toast.success(
         `Venta ${formData.type === "local" ? "Local" : "PedidosYa"} registrada`,
         {
-          description: isPromo
-            ? `¡Promo "${
-                calculation.appliedPromo.name
-              }" aplicada! Total: $${calculation.total.toLocaleString("es-AR")}`
-            : `$ ${calculation.total.toLocaleString("es-AR")}`,
+          description:
+            isPromo && manualTotal === null
+              ? `¡Promo "${
+                  calculation.appliedPromo.name
+                }" aplicada! Total: $${finalTotal.toLocaleString("es-AR")}`
+              : `$ ${finalTotal.toLocaleString("es-AR")}`,
         }
       );
 
@@ -111,6 +119,7 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
         presentationId: "",
         paymentMethod: "efectivo",
       }));
+      setManualTotal(null);
     } catch (err) {
       console.error("Error venta:", err);
       toast.error(formatError(err));
@@ -270,27 +279,56 @@ export default function RegisterSaleForm({ onSaleSuccess, onTypeChange }) {
               </span>
             </div>
 
-            <div className="text-right">
-              {calculation.appliedPromo && (
+            <div className="text-right flex flex-col items-end">
+              {calculation.appliedPromo && manualTotal === null && (
                 <span className="block text-sm text-slate-400 line-through mr-1">
                   $ {calculation.baseTotal.toLocaleString("es-AR")}
                 </span>
               )}
-              <span
-                className={cn(
-                  "text-3xl font-bold tracking-tight",
-                  calculation.appliedPromo ? "text-green-600" : "text-slate-900"
-                )}
-              >
-                $ {calculation.total.toLocaleString("es-AR")}
-              </span>
+
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "text-2xl font-bold pb-1",
+                    calculation.appliedPromo && manualTotal === null
+                      ? "text-green-600"
+                      : "text-slate-900"
+                  )}
+                >
+                  $
+                </span>
+                <Input
+                  type="number"
+                  min="0"
+                  disabled={!formData.presentationId}
+                  className={cn(
+                    "text-right md:text-2xl font-bold w-48 h-12 bg-transparent border-slate-200 focus-visible:ring-1 disabled:opacity-50 disabled:cursor-not-allowed",
+                    calculation.appliedPromo && manualTotal === null
+                      ? "text-green-600"
+                      : "text-slate-900"
+                  )}
+                  value={manualTotal !== null ? manualTotal : calculation.total}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setManualTotal("");
+                    } else {
+                      const num = Number(val);
+                      if (num >= 0) setManualTotal(num);
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
 
           <Button
             size="lg"
             onClick={handleRegister}
-            disabled={!formData.presentationId || calculation.total === 0}
+            disabled={
+              !formData.presentationId ||
+              (calculation.total === 0 && manualTotal === null)
+            }
             className={cn(
               "w-full h-11 text-base font-semibold text-white shadow-md transition-all duration-200",
               theme.button
