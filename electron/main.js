@@ -20,6 +20,7 @@ import { setupPromotionHandlers } from "./handlers/promotionsHandler.js";
 import { setupSalesHandlers } from "./handlers/salesHandler.js";
 import { setupStatsHandlers } from "./handlers/statsHandler.js";
 import { setupSystemHandlers } from "./handlers/systemHandler.js";
+import { setupFlavorsHandlers } from "./handlers/flavorsHandler.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +86,7 @@ app.whenReady().then(() => {
   setupSalesHandlers();
   setupStatsHandlers();
   setupSystemHandlers();
+  setupFlavorsHandlers();
 
   // 3. Crear Ventana
   createWindow();

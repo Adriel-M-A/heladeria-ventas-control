@@ -34,4 +34,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   addPromotion: (data) => ipcRenderer.invoke("add-promotion", data),
   updatePromotion: (data) => ipcRenderer.invoke("update-promotion", data),
   deletePromotion: (id) => ipcRenderer.invoke("delete-promotion", id),
+
+  // --- SABORES (STOCK BALDES) ---
+  getFlavors: () => ipcRenderer.invoke("flavors:get-all"),
+  addFlavor: (data) => ipcRenderer.invoke("flavors:create", data),
+  updateFlavorStock: (data) => ipcRenderer.invoke("flavors:update-stock", data),
+  deleteFlavor: (id) => ipcRenderer.invoke("flavors:delete", id),
 });

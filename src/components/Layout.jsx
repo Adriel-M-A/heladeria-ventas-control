@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   Settings,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -122,6 +123,12 @@ function SidebarContent({ currentView, onNavigate }) {
           label="Datos"
           active={currentView === "datos"}
           onClick={() => onNavigate("datos")}
+        />
+        <NavItem
+          icon={<Package />}
+          label="Stock Baldes"
+          active={currentView === "sabores"}
+          onClick={() => onNavigate("sabores")}
         />
         <NavItem
           icon={<FileText />}

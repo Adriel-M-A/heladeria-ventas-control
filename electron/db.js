@@ -79,6 +79,17 @@ const migrations = [
       ALTER TABLE sales ADD COLUMN payment_method TEXT DEFAULT 'efectivo';
     `);
   },
+  // NUEVA MIGRACIÓN: Tabla de sabores (stock de baldes)
+  (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS flavors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        stock INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1
+      );
+    `);
+  },
 ];
 
 function runMigrations() {

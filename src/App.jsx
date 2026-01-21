@@ -5,6 +5,7 @@ import SalesView from "@/components/SalesView";
 import DataManagement from "@/components/DataManagement";
 import ReportsView from "@/components/ReportsView";
 import SettingsView from "@/components/SettingsView";
+import FlavorsView from "@/components/FlavorsView";
 
 function App() {
   const [currentView, setCurrentView] = useState("ventas");
@@ -18,6 +19,8 @@ function App() {
         return <DataManagement />;
       case "reportes":
         return <ReportsView />;
+      case "sabores":
+        return <FlavorsView />;
       case "configuracion":
         return <SettingsView />;
       default:
